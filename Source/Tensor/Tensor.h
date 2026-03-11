@@ -23,13 +23,17 @@ public:
 
     int& at(const std::vector<int>& indices);
     const int& at(const std::vector<int>& indices) const;
-    int calculate_offset(const std::vector<int>& indices) const;
-    void update_indices(std::vector<int>& indices) const;
-    int get_total_elements() const;
+
     void for_each_linear(const std::function<void(int&, const std::vector<int>&)>& func);
     void for_each_batch(const std::function<void(int*, int, int)>& func);
     void for_each_batch_with_indices(const std::function<void(int*, int, int, const std::vector<int>&)>& func);
     void print_info() const;
+private:
+    int calculate_offset(const std::vector<int>& indices) const;
+    void update_indices(std::vector<int>& indices) const;
+    int get_total_elements() const;
+    
+    
 private:
     std::shared_ptr<byte[]> pdata;
     unsigned int data_len;

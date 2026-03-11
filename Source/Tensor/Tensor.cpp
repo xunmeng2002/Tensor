@@ -186,46 +186,7 @@ const int& Tensor::at(const std::vector<int>& indices) const
     int offset = calculate_offset(indices);
     return *((int*)(pdata.get()) + offset);
 }
-int Tensor::calculate_offset(const std::vector<int>& indices) const
-{
-    if (indices.size() != shape.size()) {
-        throw std::invalid_argument("Number of indices must match tensor dimensions");
-    }
 
-    int offset = this->offset;
-    for (size_t i = 0; i < indices.size(); ++i)
-    {
-        if (indices[i] < 0 || indices[i] >= shape[i])
-        {
-            throw std::out_of_range("Index out of bounds");
-        }
-        offset += indices[i] * strides[i];
-    }
-    return offset;
-}
-void Tensor::update_indices(std::vector<int>& indices) const
-{
-    int dim = (int)shape.size() - 1;
-    while (dim >= 0)
-    {
-        indices[dim]++;
-        if (indices[dim] < shape[dim])
-        {
-            break;
-        }
-        indices[dim] = 0;
-        dim--;
-    }
-}
-int Tensor::get_total_elements() const
-{
-    int total = 1;
-    for (int dim_size : shape)
-    {
-        total *= dim_size;
-    }
-    return total;
-}
 void Tensor::for_each_linear(const std::function<void(int&, const std::vector<int>&)>& func)
 {
     int total_elements = get_total_elements();
@@ -312,3 +273,45 @@ void Tensor::print_info() const
     printf("is_contiguous:%d\n", is_contiguous());
 }
 
+
+
+int Tensor::calculate_offset(const std::vector<int>& indices) const
+{
+    if (indices.size() != shape.size()) {
+        throw std::invalid_argument("Number of indices must match tensor dimensions");
+    }
+
+    int offset = this->offset;
+    for (size_t i = 0; i < indices.size(); ++i)
+    {
+        if (indices[i] < 0 || indices[i] >= shape[i])
+        {
+            throw std::out_of_range("Index out of bounds");
+        }
+        offset += indices[i] * strides[i];
+    }
+    return offset;
+}
+void Tensor::update_indices(std::vector<int>& indices) const
+{
+    int dim = (int)shape.size() - 1;
+    while (dim >= 0)
+    {
+        indices[dim]++;
+        if (indices[dim] < shape[dim])
+        {
+            break;
+        }
+        indices[dim] = 0;
+        dim--;
+    }
+}
+int Tensor::get_total_elements() const
+{
+    int total = 1;
+    for (int dim_size : shape)
+    {
+        total *= dim_size;
+    }
+    return total;
+}
