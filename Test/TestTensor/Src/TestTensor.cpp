@@ -85,5 +85,8 @@ void test_contiguous()
 
     printf("--------End test_contiguous--------\n\n");
 }
+void test_view()
+{
 
+}
 

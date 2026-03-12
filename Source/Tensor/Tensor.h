@@ -23,6 +23,8 @@ public:
 
     int& at(const std::vector<int>& indices);
     const int& at(const std::vector<int>& indices) const;
+    Tensor view(const std::vector<int>& new_shape) const;
+
 
     void for_each_linear(const std::function<void(int&, const std::vector<int>&)>& func);
     void for_each_batch(const std::function<void(int*, int, int)>& func);
@@ -32,6 +34,7 @@ private:
     int calculate_offset(const std::vector<int>& indices) const;
     void update_indices(std::vector<int>& indices) const;
     int get_total_elements() const;
+    Tensor view_impl(const std::vector<int>& new_shape) const;
     
     
 private:

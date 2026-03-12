@@ -56,7 +56,6 @@ bool Tensor::transpose(int dim1, int dim2)
 
     if (dim1 < 0 || dim1 >= (int)shape.size() || dim2 < 0 || dim2 >= (int)shape.size())
     {
-        throw std::out_of_range("Invalid dimension for transpose");
         return false;
     }
     if (dim1 == dim2)
@@ -102,16 +101,17 @@ void Tensor::copy_recursive(int dim, std::vector<int>& indices, int*& new_ptr) c
 {
     if (dim == shape.size())
     {
-        int offset = this->offset;
+        int curr_offset = this->offset;
         for (size_t i = 0; i < indices.size(); ++i)
         {
-            offset += indices[i] * strides[i];
+            curr_offset += indices[i] * strides[i];
         }
-        int value = *((int*)pdata.get() + offset);
+        int value = *((int*)pdata.get() + curr_offset);
         *new_ptr++ = value;
         return;
     }
-    for (int i = 0; i < shape[dim]; ++i) {
+    for (int i = 0; i < shape[dim]; ++i)
+    {
         indices[dim] = i;
         copy_recursive(dim + 1, indices, new_ptr);
     }
@@ -178,14 +178,60 @@ std::vector<int> Tensor::get_dimension_order_by_stride() const
 
 int& Tensor::at(const std::vector<int>& indices)
 {
-    int offset = calculate_offset(indices);
-    return *((int*)(pdata.get()) + offset);
+    int curr_offset = calculate_offset(indices);
+    return *((int*)(pdata.get()) + curr_offset);
 }
 const int& Tensor::at(const std::vector<int>& indices) const
 {
-    int offset = calculate_offset(indices);
-    return *((int*)(pdata.get()) + offset);
+    int curr_offset = calculate_offset(indices);
+    return *((int*)(pdata.get()) + curr_offset);
 }
+Tensor Tensor::view(const std::vector<int>& new_shape) const {
+    // 计算新形状的总元素数
+    int new_total = 1;
+    int minus_one_idx = -1;
+    for (auto i = 0; i < (int)new_shape.size(); ++i)
+    {
+        if (new_shape[i] == -1)
+        {
+            if (minus_one_idx != -1)
+            {
+                throw std::invalid_argument("Only one dimension can be -1");
+            }
+            minus_one_idx = i;
+        }
+        else
+        {
+            if (new_shape[i] <= 0)
+            {
+                throw std::invalid_argument("Dimensions must be positive");
+            }
+            new_total *= new_shape[i];
+        }
+    }
+    int old_total = get_total_elements();
+    if (minus_one_idx != -1)
+    {
+        // 计算-1维度的大小
+        if (old_total % new_total != 0)
+        {
+            throw std::invalid_argument("Shape is not divisible");
+        }
+        std::vector<int> final_shape = new_shape;
+        final_shape[minus_one_idx] = old_total / new_total;
+        return view_impl(final_shape);
+    }
+    else
+    {
+        if (new_total != old_total)
+        {
+            throw std::invalid_argument("New shape must have same number of elements");
+        }
+        return view_impl(new_shape);
+    }
+}
+
+
 
 void Tensor::for_each_linear(const std::function<void(int&, const std::vector<int>&)>& func)
 {
@@ -281,16 +327,16 @@ int Tensor::calculate_offset(const std::vector<int>& indices) const
         throw std::invalid_argument("Number of indices must match tensor dimensions");
     }
 
-    int offset = this->offset;
+    int curr_offset = this->offset;
     for (size_t i = 0; i < indices.size(); ++i)
     {
         if (indices[i] < 0 || indices[i] >= shape[i])
         {
             throw std::out_of_range("Index out of bounds");
         }
-        offset += indices[i] * strides[i];
+        curr_offset += indices[i] * strides[i];
     }
-    return offset;
+    return curr_offset;
 }
 void Tensor::update_indices(std::vector<int>& indices) const
 {
@@ -314,4 +360,27 @@ int Tensor::get_total_elements() const
         total *= dim_size;
     }
     return total;
+}
+Tensor Tensor::view_impl(const std::vector<int>& new_shape) const
+{
+    // 检查是否可以创建视图（内存连续）
+    if (!is_contiguous())
+    {
+        throw std::runtime_error("Cannot create view on non-contiguous tensor");
+    }
+    Tensor result;
+    result.pdata = this->pdata;
+    result.data_len = this->data_len;
+    result.offset = this->offset;
+    result.shape = new_shape;
+
+    // 计算新步长
+    result.strides.resize(new_shape.size());
+    int stride = 1;
+    for (int i = (int)new_shape.size() - 1; i >= 0; --i)
+    {
+        result.strides[i] = stride;
+        stride *= new_shape[i];
+    }
+    return result;
 }
