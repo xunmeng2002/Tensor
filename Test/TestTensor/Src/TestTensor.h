@@ -2,8 +2,10 @@
 #include "Tensor.h"
 
 
-void test_permute_and_transpose();
-void test_contiguous();
-void test_view();
-
+void TestPermuteAndTranspose();
+void TestContiguous();
+void TestView();
+void TestSqueezeAndUnsqueeze();
+void TestExpand();
+void TestRepeat();
 

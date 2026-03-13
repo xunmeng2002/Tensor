@@ -3,12 +3,13 @@
 using namespace std;
 
 
-
-
 int main()
 {
-    test_permute_and_transpose();
-    test_contiguous();
-
+    //TestPermuteAndTranspose();
+    //TestContiguous();
+    //TestView();
+	//TestSqueezeAndUnsqueeze();
+	//TestExpand();
+    TestRepeat();
     return 0;
 }
