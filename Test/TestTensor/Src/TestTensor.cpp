@@ -57,7 +57,7 @@ Tensor<int>* PrepareTestTensor()
     int* array = new int[24] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24};
     vector<int> shape = { 2, 4, 3 };
     vector<int> strides = { 12, 3, 1 };
-    auto tensor = new Tensor(array, 24, 0, shape, strides);
+    auto tensor = new Tensor(array, 0, shape, strides);
     PrintTensor(tensor);
     return tensor;
 }
@@ -66,7 +66,7 @@ Tensor<int>* PrepareTestTensor2()
     int* array = new int[12] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
     vector<int> shape = { 2, 2, 3 };
     vector<int> strides = { 6, 3, 1 };
-    auto tensor = new Tensor(array, 12, 0, shape, strides);
+    auto tensor = new Tensor(array, 0, shape, strides);
     PrintTensor(tensor);
     return tensor;
 }

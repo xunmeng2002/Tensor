@@ -12,9 +12,9 @@ template<typename T>
 class Tensor
 {
 public:
-    Tensor() :pdata(nullptr), size(0), offset(0) {}
-    Tensor(T* data, unsigned int size, unsigned int offset, const vector<int>& shape, const vector<int>& strides)
-        :pdata(data, [](T* p) { delete[] p; }), size(size), offset(offset), shape(shape), strides(strides)
+    Tensor() :pdata(nullptr), offset(0) {}
+    Tensor(T* data, unsigned int offset, const vector<int>& shape, const vector<int>& strides)
+        :pdata(data, [](T* p) { delete[] p; }), offset(offset), shape(shape), strides(strides)
     {}
     std::shared_ptr<T> Allocate(int newSize) const
     {
@@ -119,7 +119,6 @@ public:
         CopyRecursive(0, indices, new_ptr);
         
         pdata = new_pdata;
-        size = newSize;
         offset = 0;
         strides = std::move(cont_strides);
     }
@@ -129,7 +128,6 @@ public:
         if (IsContiguous())
         {
             result->pdata = this->pdata;
-            result->size = this->size;
             result->offset = this->offset;
             result->shape = this->shape;
             result->strides = this->strides;
@@ -137,7 +135,6 @@ public:
             return result;
         }
         int newSize = GetTotalElements();
-        result->size = newSize;
         result->pdata = Allocate(newSize);
         result->offset = 0;
         result->shape = this->shape;
@@ -229,7 +226,6 @@ public:
     {
         Tensor* result = new Tensor();
         result->pdata = this->pdata;
-        result->size = this->size;
         result->offset = this->offset;
         for (auto i = 0; i < (int)shape.size(); ++i)
         {
@@ -261,7 +257,6 @@ public:
         }
         Tensor* result = new Tensor();
         result->pdata = this->pdata;
-        result->size = this->size;
         result->offset = this->offset;
         for (int i = 0; i < (int)shape.size(); ++i)
         {
@@ -291,7 +286,6 @@ public:
         }
         Tensor* result = new Tensor();
         result->pdata = this->pdata;
-        result->size = this->size;
         result->offset = this->offset;
         for (size_t i = 0; i < shape.size(); ++i)
         {
@@ -316,7 +310,6 @@ public:
         }
         Tensor* result = new Tensor();
         result->pdata = this->pdata;
-        result->size = this->size;
         result->offset = this->offset;
         result->shape = this->shape;
         result->strides = this->strides;
@@ -372,7 +365,6 @@ public:
         }
         Tensor* result = new Tensor();
         result->pdata = this->pdata;
-        result->size = this->size;
         result->offset = this->offset;
         result->shape = new_shape;
         result->strides.resize(new_shape.size());
@@ -418,7 +410,6 @@ public:
             total_elements *= s;
 
         result->pdata = Allocate(total_elements);
-        result->size = total_elements;
         result->offset = 0;
         result->shape = new_shape;
         result->strides = result->GetContiguousStrides();
@@ -617,7 +608,6 @@ private:
         }
         Tensor* result = new Tensor();
         result->pdata = this->pdata;
-        result->size = this->size;
         result->offset = this->offset;
         result->shape = new_shape;
 
@@ -635,7 +625,6 @@ private:
     
 private:
     std::shared_ptr<T> pdata;
-    unsigned int size;
     unsigned int offset;
     vector<int> shape;
     vector<int> strides;
