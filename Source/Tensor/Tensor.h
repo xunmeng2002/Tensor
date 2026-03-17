@@ -16,9 +16,97 @@ public:
     Tensor(T* data, unsigned int offset, const vector<int>& shape, const vector<int>& strides)
         :pdata(data, [](T* p) { delete[] p; }), offset(offset), shape(shape), strides(strides)
     {}
+    Tensor(shared_ptr<T> data, unsigned int offset, const vector<int>& shape, const vector<int>& strides)
+        :pdata(data), offset(offset), shape(shape), strides(strides)
+    {
+    }
+
+    Tensor(const Tensor& other)
+    {
+        pdata = other.pdata;
+        offset = other.offset;
+        shape = other.shape;
+        strides = other.strides;
+    }
+    Tensor& operator=(const Tensor& other)
+    {
+        pdata = other.pdata;
+        offset = other.offset;
+        shape = other.shape;
+        strides = other.strides;
+        return *this;
+    }
+    Tensor(Tensor&& other)
+    {
+        pdata = std::move(other.pdata);
+        offset = other.offset;
+        shape = std::move(other.shape);
+		strides = std::move(other.strides);
+    }
+    Tensor& operator=(Tensor&& other)
+    {
+        if (this != &other)
+        {
+            pdata = std::move(other.pdata);
+            offset = other.offset;
+            shape = std::move(other.shape);
+            strides = std::move(other.strides);
+        }
+        return *this;
+    }
+
+    static shared_ptr<Tensor> Create()
+    {
+        return make_shared<Tensor>();
+    }
+    static shared_ptr<Tensor> Create(const std::vector<int>& shape)
+    {
+        int total = 1;
+        for (int s : shape)
+            total *= s;
+		auto tensor = make_shared<Tensor>();
+        tensor->pdata = std::shared_ptr<T>(new T[total], std::default_delete<T[]>());
+		tensor->offset = 0;
+		tensor->shape = shape;
+		tensor->strides = CalculateContiguousStrides(shape);
+        return tensor;
+    }
+    static shared_ptr<Tensor> Zeros(const std::vector<int>& shape)
+    {
+        auto tensor = Create(shape);
+        T* data_ptr = tensor->pdata.get();
+        int total_bytes = tensor->GetTotalElements() * sizeof(T);
+        std::memset(data_ptr, 0, total_bytes);
+        return tensor;
+    }
+    static shared_ptr<Tensor> Ones(const std::vector<int>& shape)
+    {
+        auto tensor = Create(shape);
+        T* data_ptr = tensor->pdata.get();
+        int total = tensor->GetTotalElements();
+        std::fill(data_ptr, data_ptr + total, T(1));
+        return tensor;
+    }
+    static shared_ptr<Tensor> Full(const std::vector<int>& shape, T value)
+    {
+        auto tensor = Create(shape);
+        T* data_ptr = tensor->pdata.get();
+        int total = tensor->GetTotalElements();
+        if (value == T(0))
+        {
+            std::memset(data_ptr, 0, total * sizeof(T));
+        }
+        else
+        {
+            std::fill(data_ptr, data_ptr + total, value);
+        }
+        return tensor;
+    }
+
+
     std::shared_ptr<T> Allocate(int newSize) const
     {
-        return shared_ptr<T>(new T[newSize], [](T* p) {delete p; });
+        return shared_ptr<T>(new T[newSize], [](T* p) {delete[] p; });
     }
     bool CheckDims(const vector<int>& dims)
     {
@@ -49,7 +137,7 @@ public:
         auto oldShape = shape;
         auto oldStrides = strides;
 
-        for (auto i = 0; i < dims.size(); ++i)
+        for (auto i = 0; i < (int)dims.size(); ++i)
         {
             auto dim = dims[i];
             if (dim < 0)
@@ -93,6 +181,10 @@ public:
     }
     std::vector<int> GetContiguousStrides() const
     {
+        return CalculateContiguousStrides(shape);
+    }
+    static std::vector<int> CalculateContiguousStrides(const std::vector<int>& shape)
+    {
         std::vector<int> cont_strides(shape.size());
         if (shape.empty())
         {
@@ -105,7 +197,7 @@ public:
             stride *= shape[i];
         }
         return cont_strides;
-    }
+	}
 
     void ContiguousInplace()
     {
@@ -122,17 +214,13 @@ public:
         offset = 0;
         strides = std::move(cont_strides);
     }
-    Tensor* Contiguous() const
+    shared_ptr<Tensor> Contiguous() const
     {
-        Tensor* result = new Tensor();
+        auto result = Create();
         if (IsContiguous())
         {
-            result->pdata = this->pdata;
-            result->offset = this->offset;
-            result->shape = this->shape;
-            result->strides = this->strides;
-
-            return result;
+            *result = *this;
+            return shared_ptr<Tensor>(result);
         }
         int newSize = GetTotalElements();
         result->pdata = Allocate(newSize);
@@ -167,9 +255,8 @@ public:
         int curr_offset = CalculateOffset(indices);
         return *(pdata.get() + curr_offset);
     }
-    Tensor* View(const std::vector<int>& new_shape) const
+    shared_ptr<Tensor> View(const std::vector<int>& new_shape) const
     {
-        // 计算新形状的总元素数
         int new_total = 1;
         int minus_one_idx = -1;
         for (auto i = 0; i < (int)new_shape.size(); ++i)
@@ -216,15 +303,14 @@ public:
             return ViewImpl(new_shape);
         }
     }
-    Tensor* Reshape(const std::vector<int>& new_shape) const
+    shared_ptr<Tensor> Reshape(const std::vector<int>& new_shape) const
     {
-        return Contiguous().View(new_shape);
+        return Contiguous()->View(new_shape);
     }
     
-
-    Tensor* Squeeze() const
+    shared_ptr<Tensor> Squeeze() const
     {
-        Tensor* result = new Tensor();
+        auto result = Create();
         result->pdata = this->pdata;
         result->offset = this->offset;
         for (auto i = 0; i < (int)shape.size(); ++i)
@@ -243,7 +329,7 @@ public:
         }
         return result;
     }
-    Tensor* Squeeze(int dim)
+    shared_ptr<Tensor> Squeeze(int dim) const
     {
         if (dim < 0) dim += (int)shape.size();
         if (dim < 0 || dim >= static_cast<int>(shape.size()))
@@ -251,11 +337,12 @@ public:
             printf("Invalid dimension for squeeze\n");
             return nullptr;
         }
+        auto result = Create();
         if (shape[dim] != 1)
         {
-            return this;  // 维度长度不为1，返回自身
+            *result = *this;
+            return result;
         }
-        Tensor* result = new Tensor();
         result->pdata = this->pdata;
         result->offset = this->offset;
         for (int i = 0; i < (int)shape.size(); ++i)
@@ -268,7 +355,7 @@ public:
         }
         return result;
     }
-    Tensor* Squeeze(const std::vector<int>& dims)
+    shared_ptr<Tensor> Squeeze(const std::vector<int>& dims) const
     {
         std::vector<bool> to_squeeze(shape.size(), false);
         for (int dim : dims)
@@ -284,7 +371,7 @@ public:
                 to_squeeze[dim] = true;
             }
         }
-        Tensor* result = new Tensor();
+        auto result = Create();
         result->pdata = this->pdata;
         result->offset = this->offset;
         for (size_t i = 0; i < shape.size(); ++i)
@@ -297,7 +384,7 @@ public:
         }
         return result;
     }
-    Tensor* Unsqueeze(int dim)
+    shared_ptr<Tensor> Unsqueeze(int dim) const
     {
         if (dim < 0)
         {
@@ -308,7 +395,7 @@ public:
             printf("Invalid dimension for unsqueeze\n");
             return nullptr;
         }
-        Tensor* result = new Tensor();
+        auto result = Create();
         result->pdata = this->pdata;
         result->offset = this->offset;
         result->shape = this->shape;
@@ -346,7 +433,7 @@ public:
         }
         return result;
     }
-    Tensor* Expand(const std::vector<int>& new_shape) const
+    shared_ptr<Tensor> Expand(const std::vector<int>& new_shape) const
     {
         if (new_shape.size() < shape.size())
         {
@@ -363,7 +450,7 @@ public:
                 return nullptr;
             }
         }
-        Tensor* result = new Tensor();
+        auto result = Create();
         result->pdata = this->pdata;
         result->offset = this->offset;
         result->shape = new_shape;
@@ -390,21 +477,18 @@ public:
         }
         return result;
     }
-    Tensor* Repeat(const std::vector<int>& repeats) const
+    shared_ptr<Tensor> Repeat(const std::vector<int>& repeats) const
     {
         if (repeats.size() != shape.size())
         {
             return nullptr;
         }
-        // 计算新形状
         std::vector<int> new_shape(shape.size());
         for (size_t i = 0; i < shape.size(); ++i)
         {
             new_shape[i] = shape[i] * repeats[i];
         }
-
-        // 创建新Tensor
-        Tensor* result = new Tensor();
+        auto result = Create();
         int total_elements = 1;
         for (int s : new_shape)
             total_elements *= s;
@@ -414,14 +498,12 @@ public:
         result->shape = new_shape;
         result->strides = result->GetContiguousStrides();
 
-        // 填充数据
         std::vector<int> indices(shape.size(), 0);
         std::vector<int> new_indices(new_shape.size(), 0);
         auto dest_ptr = result->pdata.get();
         std::function<void(int)> repeat_recursive = [&](int dim) {
             if (dim == shape.size() - 1)
             {
-                // 获取原数据
                 int curr_offset = this->offset;
                 for (size_t i = 0; i < indices.size(); ++i)
                 {
@@ -447,6 +529,77 @@ public:
         return result;
     }
 
+    shared_ptr<Tensor> Narrow(int dim, int start, int length) const
+    {
+        if (dim < 0) dim += (int)shape.size();
+        if (dim < 0 || dim >= (int)shape.size())
+        {
+            printf("Narrow: Invalid dimension %d\n", dim);
+            return nullptr;
+        }
+        if (start < 0) start += shape[dim];
+        if (start < 0 || start >= shape[dim])
+        {
+            printf("Narrow: Start index %d out of range [0, %d)\n", start, shape[dim]);
+            return nullptr;
+        }
+        if (length <= 0)
+        {
+            printf("Narrow: Length must be positive\n");
+            return nullptr;
+        }
+        if (start + length > shape[dim])
+        {
+            printf("Narrow: Slice [%d, %d) out of range for dimension size %d\n", start, start + length, shape[dim]);
+            return nullptr;
+        }
+        auto result = Create();
+        result->pdata = this->pdata;
+        result->offset = this->offset + start * strides[dim];
+        result->shape = this->shape;
+        result->shape[dim] = length;
+        result->strides = this->strides;
+        return result;
+    }
+    shared_ptr<Tensor> Narrow(const std::vector<int>& dims, const std::vector<int>& starts, const std::vector<int>& lengths) const
+    {
+        if (dims.size() != starts.size() || dims.size() != lengths.size())
+        {
+            printf("Narrow: dims, starts and lengths must have same size\n");
+            return nullptr;
+        }
+        auto result = Create();
+        result->pdata = this->pdata;
+        result->offset = this->offset;
+        result->shape = this->shape;
+        result->strides = this->strides;
+        for (size_t i = 0; i < dims.size(); ++i)
+        {
+            int dim = dims[i];
+            if (dim < 0) dim += (int)result->shape.size();
+            int start = starts[i];
+            if (start < 0) start += result->shape[dim];
+            int length = lengths[i];
+            if (dim < 0 || dim >= (int)result->shape.size())
+            {
+                printf("Narrow: Invalid dimension %d\n", dim);
+                return nullptr;
+            }
+            if (start < 0 || start >= result->shape[dim])
+            {
+                printf("Narrow: Start index %d out of range\n", start);
+                return nullptr;
+            }
+            if (length <= 0 || start + length > result->shape[dim])
+            {
+                printf("Narrow: Invalid length %d for dimension %d\n", length, dim);
+                return nullptr;
+            }
+            result->offset += start * result->strides[dim];
+            result->shape[dim] = length;
+        }
+        return result;
+    }
 
     void ForEachLinear(const std::function<void(T, const std::vector<int>&)>& func)
     {
@@ -515,6 +668,7 @@ public:
     }
     void PrintInfo() const
     {
+		printf("Offset: %u\n", offset);
         std::cout << "Shape: [";
         for (size_t i = 0; i < shape.size(); ++i)
         {
@@ -534,7 +688,18 @@ public:
         std::cout << "]" << std::endl;
         printf("is_contiguous:%d\n", IsContiguous());
     }
+    void Print() const
+    {
+        if (shape.empty() || pdata == nullptr)
+        {
+            std::cout << "[]" << std::endl;
+            return;
+        }
 
+        std::vector<int> indices(shape.size(), 0);
+        PrintRecursive(0, indices);
+        std::cout << std::endl;
+    }
 private:
     int CalculateOffset(const std::vector<int>& indices) const
     {
@@ -599,19 +764,16 @@ private:
         }
         return total;
     }
-    Tensor* ViewImpl(const std::vector<int>& new_shape) const
+    shared_ptr<Tensor> ViewImpl(const std::vector<int>& new_shape) const
     {
-        // 检查是否可以创建视图（内存连续）
         if (!IsContiguous())
         {
             return nullptr;
         }
-        Tensor* result = new Tensor();
+        auto result = Create();
         result->pdata = this->pdata;
         result->offset = this->offset;
         result->shape = new_shape;
-
-        // 计算新步长
         result->strides.resize(new_shape.size());
         int stride = 1;
         for (int i = (int)new_shape.size() - 1; i >= 0; --i)
@@ -621,7 +783,44 @@ private:
         }
         return result;
     }
-    
+    void PrintRecursive(int dim, std::vector<int>& indices) const
+    {
+        std::cout << "[";
+        if (dim == shape.size() - 1)
+        {
+            for (int i = 0; i < shape[dim]; ++i)
+            {
+                indices[dim] = i;
+                int offset = CalculateOffset(indices);
+                std::cout << *(pdata.get() + offset);
+                if (i < shape[dim] - 1)
+                    std::cout << ", ";
+            }
+        }
+        else
+        {
+            for (int i = 0; i < shape[dim]; ++i)
+            {
+                indices[dim] = i;
+                PrintRecursive(dim + 1, indices);
+                if (i < shape[dim] - 1)
+                {
+                    std::cout << ",";
+                    if (dim < shape.size() - 2)
+                    {
+                        std::cout << "\n";
+                        for (int j = 0; j <= dim; ++j)
+                            std::cout << " ";
+                    }
+                    else
+                    {
+                        std::cout << " ";
+                    }
+                }
+            }
+        }
+        std::cout << "]";
+    }
     
 private:
     std::shared_ptr<T> pdata;

@@ -44,29 +44,32 @@ void PrintDimOrder(const vector<int>& values)
 }
 
 template<typename T>
-void PrintTensor(Tensor<T>* tensor)
+void PrintTensor(shared_ptr<Tensor<T>> tensor)
 {
     PrintDimOrder(tensor->GetDimensionOrderByStride());
     tensor->PrintInfo();
-    tensor->ForEachBatch(PrintRow);
+    tensor->Print();
+    //tensor->ForEachBatch(PrintRow);
     tensor->ForEachBatchWithIndices(PrintRowWithIndices);
     printf("\n");
 }
-Tensor<int>* PrepareTestTensor()
+// Prepare a 2x3x4 tensor with values from 1 to 24, and strides {12, 4, 1}
+static shared_ptr<Tensor<int>> PrepareTestTensor()
 {
     int* array = new int[24] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24};
-    vector<int> shape = { 2, 4, 3 };
-    vector<int> strides = { 12, 3, 1 };
-    auto tensor = new Tensor(array, 0, shape, strides);
+    vector<int> shape = { 2, 3, 4 };
+    vector<int> strides = { 12, 4, 1 };
+    auto tensor = shared_ptr<Tensor<int>>(new Tensor(array, 0, shape, strides));
     PrintTensor(tensor);
     return tensor;
 }
-Tensor<int>* PrepareTestTensor2()
+// Prepare a 2x2x3 tensor with values from 1 to 12, and strides {6, 3, 1}
+static shared_ptr<Tensor<int>> PrepareTestTensor2()
 {
     int* array = new int[12] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
     vector<int> shape = { 2, 2, 3 };
     vector<int> strides = { 6, 3, 1 };
-    auto tensor = new Tensor(array, 0, shape, strides);
+    auto tensor = shared_ptr<Tensor<int>>(new Tensor(array, 0, shape, strides));
     PrintTensor(tensor);
     return tensor;
 }
@@ -76,7 +79,7 @@ void TestPermuteAndTranspose()
     auto tensor = PrepareTestTensor();
     
     printf("Transpose for dim 2 and 1\n");
-    tensor->Transpose(2, 1);
+    tensor->Transpose(0, 1);
     PrintTensor(tensor);
 
     printf("Permute for {0, 2, 1}\n");
@@ -186,3 +189,43 @@ void TestRepeat()
     PrintTensor(tensor2);
     printf("--------End TestRepeat--------\n\n");
 }
+void TestNarrow()
+{
+    printf("\n--------Start TestNarrow--------\n");
+    auto tensor = PrepareTestTensor();
+    
+    printf("Narrow for dim 1, start 1, length 2, from {2, 3, 4}\n");
+    auto tensor2 = tensor->Narrow(1, 1, 2);
+    if (tensor2 == nullptr)
+    {
+        printf("Narrow Failed.\n");
+    }
+    else
+    {
+        PrintTensor(tensor2);
+    }
+    printf("Narrow for dim 0, start 0, length 1 from {2, 2, 4}\n");
+	auto tensor3 = tensor2->Narrow(0, 0, 1);
+    if (tensor3 == nullptr)
+    {
+        printf("Narrow Failed.\n");
+    }
+    else
+    {
+        PrintTensor(tensor3);
+	}
+
+    printf("Narrow for dim {1, 0}, start {1, 0}, length {2, 1}, from {2, 3, 4}\n");
+    auto tensor4 = tensor->Narrow({ 1,0 }, { 1, 0 }, {2, 1});
+    if (tensor4 == nullptr)
+    {
+        printf("Narrow Failed.\n");
+    }
+    else
+    {
+        PrintTensor(tensor4);
+    }
+
+	printf("--------End TestNarrow--------\n\n");
+}
+

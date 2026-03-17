@@ -10,6 +10,7 @@ int main()
     //TestView();
 	//TestSqueezeAndUnsqueeze();
 	//TestExpand();
-    TestRepeat();
+    //TestRepeat();
+	TestNarrow();
     return 0;
 }

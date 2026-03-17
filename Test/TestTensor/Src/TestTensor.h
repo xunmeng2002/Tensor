@@ -8,4 +8,4 @@ void TestView();
 void TestSqueezeAndUnsqueeze();
 void TestExpand();
 void TestRepeat();
-
+void TestNarrow();
