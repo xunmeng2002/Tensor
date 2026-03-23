@@ -5,12 +5,13 @@ using namespace std;
 
 int main()
 {
-    //TestPermuteAndTranspose();
+    TestPermuteAndTranspose();
     //TestContiguous();
     //TestView();
 	//TestSqueezeAndUnsqueeze();
 	//TestExpand();
     //TestRepeat();
-	TestNarrow();
+	//TestNarrow();
+    //TestZerosAndOnes();
     return 0;
 }

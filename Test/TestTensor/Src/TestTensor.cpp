@@ -50,7 +50,7 @@ void PrintTensor(shared_ptr<Tensor<T>> tensor)
     tensor->PrintInfo();
     tensor->Print();
     //tensor->ForEachBatch(PrintRow);
-    tensor->ForEachBatchWithIndices(PrintRowWithIndices);
+    //tensor->ForEachBatchWithIndices(PrintRowWithIndices);
     printf("\n");
 }
 // Prepare a 2x3x4 tensor with values from 1 to 24, and strides {12, 4, 1}
@@ -78,7 +78,7 @@ void TestPermuteAndTranspose()
     printf("\n--------Start TestPermuteAndTranspose--------\n");
     auto tensor = PrepareTestTensor();
     
-    printf("Transpose for dim 2 and 1\n");
+    printf("Transpose for dim 0 and 1\n");
     tensor->Transpose(0, 1);
     PrintTensor(tensor);
 
@@ -228,4 +228,21 @@ void TestNarrow()
 
 	printf("--------End TestNarrow--------\n\n");
 }
+void TestZerosAndOnes()
+{
+    printf("\n--------Start TestZerosAndOnes--------\n");
+    printf("Zeros for {2, 3, 4}\n");
+    auto tensor = Tensor<int>::Zeros({ 2, 3, 4 });
+    PrintTensor(tensor);
+    
+    printf("Ones for {2, 3, 4}\n");
+    auto tensor2 = Tensor<int>::Ones({ 2, 3, 4 });
+    PrintTensor(tensor2);
+    
+    printf("Full with value 5 for {2, 3, 4}\n");
+    auto tensor3 = Tensor<int>::Full({ 2, 3, 4 }, 5);
+    PrintTensor(tensor3);
+	printf("--------End TestZerosAndOnes--------\n\n");
+}
+
 

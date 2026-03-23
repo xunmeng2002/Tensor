@@ -9,3 +9,4 @@ void TestSqueezeAndUnsqueeze();
 void TestExpand();
 void TestRepeat();
 void TestNarrow();
+void TestZerosAndOnes();
