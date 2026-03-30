@@ -5,7 +5,7 @@ using namespace std;
 
 int main()
 {
-    TestPermuteAndTranspose();
+    //TestPermuteAndTranspose();
     //TestContiguous();
     //TestView();
 	//TestSqueezeAndUnsqueeze();
@@ -13,5 +13,11 @@ int main()
     //TestRepeat();
 	//TestNarrow();
     //TestZerosAndOnes();
+    TestIterator();
+
+    //TestNarrowAndClone();
+    //TestTransposeAndClone();
+    //TestNarrowTransposeAndClone();
+    //TestExpandAndClone();
     return 0;
 }

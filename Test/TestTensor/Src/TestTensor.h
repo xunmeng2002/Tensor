@@ -10,3 +10,10 @@ void TestExpand();
 void TestRepeat();
 void TestNarrow();
 void TestZerosAndOnes();
+void TestIterator();
+
+
+void TestNarrowAndClone();
+void TestTransposeAndClone();
+void TestNarrowTransposeAndClone();
+void TestExpandAndClone();
