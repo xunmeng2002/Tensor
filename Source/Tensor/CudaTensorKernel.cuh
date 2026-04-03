@@ -1,5 +1,6 @@
 #pragma once
 #include <cuda_runtime.h>
+#include <device_launch_parameters.h>
 #include "Tensor.h"
 
 using namespace std;
@@ -121,6 +122,50 @@ __global__ void ArrangeKernel(T* data, size_t elements, T start, T step)
     }
 }
 
+template<typename T>
+__global__ void CopyFromNoncontiguousKernel(const T* __restrict__ src, T* __restrict__ dst,
+    const int* __restrict__ shape, const int* __restrict__ strides, const int dims, const size_t elements)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= elements)
+        return;
+    int linearIndex = idx;
+    size_t srcOffset = 0;
+    for (int d = dims - 1; d >= 0; --d)
+    {
+        int coord = linearIndex % shape[d];
+        linearIndex /= shape[d];
+        srcOffset += coord * strides[d];
+    }
+    dst[idx] = src[srcOffset];
+}
+
+template<typename T>
+__global__ void RepeatKernel(const T* src_data, T* dst_data, const int64_t* src_shape, const int64_t* src_strides, const int64_t* repeats,
+    const int64_t* dst_shape, int64_t src_offset, int64_t dims, int64_t elements)
+{
+    int64_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= elements)
+        return;
+    int64_t dst_coords[8];
+    int64_t remaining = idx;
+    for (int64_t d = dims - 1; d >= 0; --d)
+    {
+        dst_coords[d] = remaining % dst_shape[d];
+        remaining /= dst_shape[d];
+    }
+    int64_t src_coords[8];
+    for (int64_t d = 0; d < dims; ++d)
+    {
+        src_coords[d] = dst_coords[d] % src_shape[d];
+    }
+    int64_t src_idx = src_offset;
+    for (int64_t d = 0; d < dims; ++d)
+    {
+        src_idx += src_coords[d] * src_strides[d];
+    }
+    dst_data[idx] = src_data[src_idx];
+}
 
 
 
@@ -172,12 +217,11 @@ bool LaunchHasZeroKernel(const T* data, size_t elements, int blockSize)
     CUDA_CHECK(cudaMalloc(&d_result, sizeof(bool)));
     CUDA_CHECK(cudaMemset(d_result, 0, sizeof(bool)));
 
-    int threads = 256;
-    int blocks = (elements + threads - 1) / threads;
+    int gridSize = (elements + blockSize - 1) / blockSize;
 
-    HasZeroKernel<T> << <blocks, threads >> > (data, elements, d_result);
+    HasZeroKernel<T><<<gridSize, blockSize >>>(data, elements, d_result);
     CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaDeviceSynchronize());
+    CUDA_CHECK(cudaStreamSynchronize(nullptr));
 
     bool result;
     CUDA_CHECK(cudaMemcpy(&result, d_result, sizeof(bool), cudaMemcpyDeviceToHost));
@@ -205,6 +249,4 @@ void LaunchArrangeKernel(T* data, size_t elements, T start, T step, int blockSiz
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 }
-
-
 

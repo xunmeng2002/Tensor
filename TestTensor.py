@@ -79,9 +79,17 @@ def TestExpand():
     PrintTensor(tensor4)    
 def TestRepeat():
     tensor1 = PrepareTestTensor2()
-    print("Repeat for {1, 2, 1}")
-    tensor2 = tensor1.repeat(1, 2, 1)
+    
+    print("transpose for dim 1 and 2")
+    tensor2 = tensor1.transpose(1,2)
     PrintTensor(tensor2)
+    
+    print("Repeat for {1, 2, 1}")
+    tensor3 = tensor2.repeat(1, 2, 1)
+    PrintTensor(tensor2)
+    PrintTensor(tensor3)
+    
+    
 def TestNarrow():
     tensor1 = PrepareTestTensor()
     print("Narrow for dim 1, start 1, length 2, from {2, 3, 4}")
@@ -175,12 +183,12 @@ if __name__ == "__main__":
     #TestView()
     #TestSqueezeAndUnsqueeze()
     #TestExpand()
-    #TestRepeat()
+    TestRepeat()
     #TestNarrow()
     #TestFlip()
     #TestNarrowAndClone()
     #TestTransposeAndClone()
     #TestSliceAndClone()
     #TestNarrowTransposeAndClone()
-    TestExpandAndClone()
+    #TestExpandAndClone()
 

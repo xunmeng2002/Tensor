@@ -2,16 +2,6 @@
 #include "CudaTensor.h"
 #include "CudaTensorKernel.cuh"
 
-// 辅助函数实现
-template<typename T>
-void CopyDataToHostInternal(const CudaTensor<T>& tensor, T* hostData)
-{
-    // 非连续拷贝的辅助实现
-    std::vector<int> indices(tensor.GetShape().size(), 0);
-    size_t idx = 0;
-    // 遍历所有元素（简化实现，实际应使用更高效的方法）
-    // 这里只是框架，完整实现需要递归遍历
-}
 
 
 // 算术运算实现
@@ -341,86 +331,50 @@ std::shared_ptr<T> CudaTensor<T>::Allocate(size_t elements) const
     return shared_ptr<T>((T*)ptr, CudaFreeDirect);
 }
 
-// 元素访问
-template<typename T>
-const T& CudaTensor<T>::At(const std::vector<int>& indices, bool checkBounds) const
-{
-    throw std::runtime_error("Direct access to CUDA tensor data not supported. Use CopyDataToHost() first.");
-}
-
-template<typename T>
-T& CudaTensor<T>::At(const std::vector<int>& indices, bool checkBounds)
-{
-    throw std::runtime_error("Direct access to CUDA tensor data not supported. Use CopyDataToHost() first.");
-}
-
 // 张量操作
 template<typename T>
 shared_ptr<Tensor<T>> CudaTensor<T>::Contiguous() const
 {
-    auto result = CreateCudaTensor();
+    auto result = CreateCudaTensor(this->shape);
     if (this->IsContiguous())
     {
-        *result = *this;
-        return result;
+        CopyDataContiguous(result->pdata.get());
     }
-
-    result->GetData() = Allocate(this->GetTotalElements());
-    result->offset = 0;
-    result->shape = this->shape;
-    result->strides = result->GetContiguousStrides();
-
-    // 使用 CUDA 内存拷贝
-    size_t totalBytes = this->GetTotalElements() * sizeof(T);
-
-    // 如果不连续，需要逐元素拷贝（这里简化处理）
-    // 实际实现中应该使用更高效的方法
-    T* hostBuffer = new T[this->GetTotalElements()];
-    CopyDataToHostInternal(hostBuffer);
-
-    CUDA_CHECK(cudaMemcpy(result->GetData().get(), hostBuffer, totalBytes, cudaMemcpyHostToDevice));
-
-    delete[] hostBuffer;
+    else
+    {
+        CopyDataNoncontiguous(result->pdata.get());
+    }
     return result;
 }
-
 template<typename T>
 void CudaTensor<T>::Contiguous_()
 {
-    if (this->IsContiguous()) return;
-
+    if (this->IsContiguous())
+        return;
     auto newPtr = Allocate(this->GetTotalElements());
-
-    // 拷贝数据到新内存
-    T* hostBuffer = new T[this->GetTotalElements()];
-    CopyDataToHostInternal(hostBuffer);
-
-    size_t totalBytes = this->GetTotalElements() * sizeof(T);
-    CUDA_CHECK(cudaMemcpy(newPtr.get(), hostBuffer, totalBytes, cudaMemcpyHostToDevice));
-
-    delete[] hostBuffer;
-
+    CopyDataNoncontiguous(newPtr.get());
     this->pdata = newPtr;
     this->offset = 0;
     this->strides = this->GetContiguousStrides();
+    CUDA_CHECK(cudaStreamSynchronize(nullptr));
 }
 
 template<typename T>
 shared_ptr<T> CudaTensor<T>::CopyDataToHost() const
 {
     size_t elements = this->GetTotalElements();
+    size_t totalBytes = elements * sizeof(T);
     T* hostData = new T[elements];
 
     if (this->IsContiguous())
     {
-        size_t totalBytes = elements * sizeof(T);
         CUDA_CHECK(cudaMemcpy(hostData, this->pdata.get() + this->offset, totalBytes, cudaMemcpyDeviceToHost));
     }
     else
     {
-        CopyDataToHostInternal(hostData);
+        auto tensor = Contiguous();
+        CUDA_CHECK(cudaMemcpy(hostData, tensor->GetData().get() + tensor->GetOffset(), totalBytes, cudaMemcpyDeviceToHost));
     }
-
     return shared_ptr<T>(hostData, [](T* p) { delete[] p; });
 }
 
@@ -461,7 +415,12 @@ void CudaTensor<T>::CopyDataContiguous(T* dest) const
 template<typename T>
 void CudaTensor<T>::CopyDataNoncontiguous(T* dest) const
 {
-    CopyDataToHostInternal(dest);
+    auto elements = this->GetTotalElements();
+    int dims = shape.size();
+    auto dShape = CopyShapeToDevice();
+    auto dStrides = CopyStridesToDevice();
+    auto gridSize = GetDefaultGridSize(elements);
+    CopyFromNoncontiguousKernel<<<gridSize, defaultBlockSize>>>(this->pdata.get(), newPtr.get(), dShape, dStrides, dims, elements);
 }
 
 template<typename T>
@@ -499,6 +458,12 @@ void CudaTensor<T>::FillValueWithStep(T start, T step)
 {
     size_t elements = this->GetTotalElements();
     LaunchArrangeKernel(this->pdata.get() + this->offset, elements, start, step, defaultBlockSize);
+}
+
+template<typename T>
+int CudaTensor<T>::GetDefaultGridSize(size_t elements) const
+{
+    return (elements + defaultBlockSize - 1) / defaultBlockSize;
 }
 
 template<typename T>
@@ -564,8 +529,20 @@ shared_ptr<CudaTensor<T>> CudaTensor<T>::Arrange(const std::vector<int>& shape, 
     return tensor;
 }
 
-
-
+template<typename T>
+std::shared_ptr<char> CudaTensor<T>::CopyShapeToDevice() const
+{
+    auto dShape = Allocate(shape.size());
+    CUDA_CHECK(cudaMemcpyAsync(dShape.get(), shape.data(), shape.size() * sizeof(int), cudaMemcpyHostToDevice), nullptr);
+    return dShape;
+}
+template<typename T>
+std::shared_ptr<char> CudaTensor<T>::CopyStridesToDevice() const
+{
+    auto dStrides = Allocate(strides.size() * sizeof(int));
+    CUDA_CHECK(cudaMemcpyAsync(dStrides.get(), strides.data(), strides.size() * sizeof(int), cudaMemcpyHostToDevice), nullptr);
+    return dStrides;
+}
 
 template class CudaTensor<float>;
 template class CudaTensor<double>;

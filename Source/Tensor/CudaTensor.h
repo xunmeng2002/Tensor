@@ -50,9 +50,6 @@ public:
     // 内存管理
     virtual std::shared_ptr<T> Allocate(size_t elements) const override;
 
-    // 元素访问
-    virtual const T& At(const std::vector<int>& indices, bool checkBounds = true) const override;
-    virtual T& At(const std::vector<int>& indices, bool checkBounds = true) override;
 
     // 张量操作
     virtual shared_ptr<Tensor<T>> Contiguous() const override;
@@ -79,9 +76,13 @@ public:
 protected:
     virtual void CopyDataContiguous(T* dest) const override;
     virtual void CopyDataNoncontiguous(T* dest) const override;
+    std::shared_ptr<char> CopyShapeToDevice() const;
+    std::shared_ptr<char> CopyStridesToDevice() const;
+
     void CopyRecursive(int dim, T*& dest, size_t currOffset) const;
     void FillValue(T value);
     void FillValueWithStep(T start, T step);
+    int GetDefaultGridSize(size_t elements) const;
 
     // 辅助方法
     void CheckAndBroadcast(const Tensor<T>& other, std::vector<int>& broadcastShape) const;
