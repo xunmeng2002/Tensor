@@ -1,5 +1,6 @@
 #pragma once
 #include "Tensor.h"
+#include "CpuTensor.h"
 
 
 void TestPermuteAndTranspose();

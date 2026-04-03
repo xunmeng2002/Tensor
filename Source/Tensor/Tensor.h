@@ -1,3 +1,4 @@
+#pragma once
 #include <string>
 #include <iostream>
 #include <vector>
@@ -10,18 +11,33 @@
 
 using namespace std;
 
+enum class DeviceType : int { CPU, CUDA };
+// 运算类型枚举
+enum class ElementwiseOp { ADD, SUB, MUL, DIV };
+enum class ScalarOp { ADD, SUB, MUL, DIV };
+
 template<typename T>
 class Tensor
 {
 public:
-    Tensor() noexcept :pdata(nullptr), offset(0) {}
-    Tensor(T* data, uint64_t offset, const vector<int>& shape, const vector<int>& strides) noexcept
-        :pdata(data, [](T* p) { delete[] p; }), offset(offset), shape(shape), strides(strides)
-    {}
-    Tensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape, const vector<int>& strides) noexcept
-        :pdata(data), offset(offset), shape(shape), strides(strides)
-    {}
-    
+    using ValueType = T;
+    Tensor(DeviceType device) noexcept :pdata(nullptr), offset(0), device(device){}
+    Tensor(const vector<int>& shape, DeviceType device) noexcept :shape(shape), offset(0), device(device)
+    {
+        this->strides = GetContiguousStrides(shape);
+    }
+    Tensor(T* data, std::function<void(void*)> deleter, uint64_t offset, const vector<int>& shape, DeviceType device) noexcept
+        :pdata(data, deleter), offset(offset), shape(shape), device(device)
+    {
+        strides = GetContiguousStrides(shape);
+    }
+    Tensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape, DeviceType device) noexcept
+        :pdata(data), offset(offset), shape(shape), device(device)
+    {
+        strides = GetContiguousStrides(shape);
+    }
+    virtual ~Tensor() = default;
+
     Tensor(const Tensor& other) noexcept
     {
         pdata = other.pdata;
@@ -119,297 +135,101 @@ public:
         }
         return *(pdata.get() + offset);
     }
-    Tensor operator-() const
+    
+    virtual shared_ptr<Tensor<T>> Add(const Tensor<T>& other) const = 0;
+    virtual shared_ptr<Tensor<T>> Sub(const Tensor<T>& other) const = 0;
+    virtual shared_ptr<Tensor<T>> Mul(const Tensor<T>& other) const = 0;
+    virtual shared_ptr<Tensor<T>> Div(const Tensor<T>& other) const = 0;
+    virtual shared_ptr<Tensor<T>> Add(T value) const = 0;
+    virtual shared_ptr<Tensor<T>> Sub(T value) const = 0;
+    virtual shared_ptr<Tensor<T>> Mul(T value) const = 0;
+    virtual shared_ptr<Tensor<T>> Div(T value) const = 0;
+    virtual void Add_(const Tensor<T>& other) = 0;
+    virtual void Sub_(const Tensor<T>& other) = 0;
+    virtual void Mul_(const Tensor<T>& other) = 0;
+    virtual void Div_(const Tensor<T>& other) = 0;
+    virtual void Add_(T value) = 0;
+    virtual void Sub_(T value) = 0;
+    virtual void Mul_(T value) = 0;
+    virtual void Div_(T value) = 0;
+
+    shared_ptr<Tensor> operator+(const Tensor& other) const
     {
-        auto result = Create(shape);
-        auto it = begin();
-        auto resultIt = result->begin();
-        while (it != end())
-        {
-            *resultIt = -*it;
-            ++it;
-            ++resultIt;
-        }
-        return *result;
+        return Add(other);
     }
-    Tensor operator+(const Tensor& other) const
+    shared_ptr<Tensor> operator-(const Tensor& other) const
     {
-        if (shape != other.shape)
-        {
-            throw std::invalid_argument("Tensor shapes must match for addition");
-        }
-        auto result = Create(shape);
-        auto it1 = begin();
-        auto it2 = other.begin();
-        auto resultIt = result->begin();
-        while (it1 != end())
-        {
-            *resultIt = *it1 + *it2;
-            ++it1;
-            ++it2;
-            ++resultIt;
-        }
-        return *result;
+        return Sub(other);
     }
-    Tensor operator-(const Tensor& other) const
+    shared_ptr<Tensor> operator*(const Tensor& other) const
     {
-        if (shape != other.shape)
-        {
-            throw std::invalid_argument("Tensor shapes must match for subtraction");
-        }
-        auto result = Create(shape);
-        auto it1 = begin();
-        auto it2 = other.begin();
-        auto resultIt = result->begin();
-        while (it1 != end())
-        {
-            *resultIt = *it1 - *it2;
-            ++it1;
-            ++it2;
-            ++resultIt;
-        }
-        return *result;
+        return Mul(other);
     }
-    Tensor operator*(T value) const
+    shared_ptr<Tensor> operator/(const Tensor& other) const
     {
-        auto result = Create(shape);
-        auto it = begin();
-        auto resultIt = result->begin();
-        while (it != end())
-        {
-            *resultIt = *it * value;
-            ++it;
-            ++resultIt;
-        }
-        return *result;
+        return Div(other);
     }
-    Tensor operator*(const Tensor& other) const
+    shared_ptr<Tensor> operator+(T value) const
     {
-        if (shape != other.shape)
-        {
-            throw std::invalid_argument("Tensor shapes must match for element-wise multiplication");
-        }
-        auto result = Create(shape);
-        auto it1 = begin();
-        auto it2 = other.begin();
-        auto resultIt = result->begin();
-        while (it1 != end())
-        {
-            *resultIt = *it1 * *it2;
-            ++it1;
-            ++it2;
-            ++resultIt;
-        }
-        return *result;
+        return Add(value);
     }
-    Tensor operator/(T value) const
+    shared_ptr<Tensor> operator-(T value) const
     {
-        if (value == T(0))
-        {
-            throw std::invalid_argument("Division by zero");
-        }
-        auto result = Create(shape);
-        auto it = begin();
-        auto resultIt = result->begin();
-        while (it != end())
-        {
-            *resultIt = *it / value;
-            ++it;
-            ++resultIt;
-        }
-        return *result;
+        return Sub(value);
+    }
+    shared_ptr<Tensor> operator*(T value) const
+    {
+        return Mul(value);
+    }
+    shared_ptr<Tensor> operator/(T value) const
+    {
+        return Div(value);
     }
     Tensor& operator+=(const Tensor& other)
     {
-        if (shape != other.shape)
-        {
-            throw std::invalid_argument("Tensor shapes must match for addition");
-        }
-        auto it1 = begin();
-        auto it2 = other.begin();
-        while (it1 != end())
-        {
-            *it1 = *it1 + *it2;
-            ++it1;
-            ++it2;
-        }
+        Add_(other);
+        return *this;
+    }
+    Tensor& operator-=(const Tensor& other)
+    {
+        Sub_(other);
+        return *this;
+    }
+    Tensor& operator*=(const Tensor& other)
+    {
+        Mul_(other);
+        return *this;
+    }
+    Tensor& operator/=(const Tensor& other)
+    {
+        Div_(other);
+        return *this;
+    }
+    Tensor& operator+=(T value)
+    {
+        Add_(value);
+        return *this;
+    }
+    Tensor& operator-=(T value)
+    {
+        Sub_(value);
         return *this;
     }
     Tensor& operator*=(T value)
     {
-        auto it = begin();
-        while (it != end())
-        {
-            *it = *it * value;
-            ++it;
-        }
+        Mul_(value);
         return *this;
     }
-    bool operator==(const Tensor& other) const
+    Tensor& operator/=(T value)
     {
-        if (shape != other.shape)
-        {
-            return false;
-        }
-        auto it1 = begin();
-        auto it2 = other.begin();
-        while (it1 != end())
-        {
-            if (*it1 != *it2)
-            {
-                return false;
-            }
-            ++it1;
-            ++it2;
-        }
-        return true;
-    }
-    bool operator!=(const Tensor& other) const
-    {
-        return !(*this == other);
+        Div_(value);
+        return *this;
     }
 
 
-    class iterator
-    {
-    public:
-        using iterator_category = std::forward_iterator_tag;
-        using value_type = T;
-        using difference_type = std::ptrdiff_t;
-        using pointer = T*;
-        using reference = T&;
-
-        iterator() : tensor(nullptr), linearIndex(0) {}
-        iterator(Tensor* tensor, size_t linear_idx)
-            : tensor(tensor), linearIndex(linear_idx)
-        {}
-        reference operator*() const
-        {
-            if (!tensor || linearIndex >= tensor->GetTotalElements())
-            {
-                throw std::out_of_range("Iterator out of range");
-            }
-            std::vector<int> indices = tensor->LinearToIndices(linearIndex);
-            size_t offset = tensor->CalculateOffset(indices);
-            return *(tensor->pdata.get() + offset);
-        }
-        pointer operator->() const
-        {
-            return &(**this);
-        }
-        iterator& operator++()
-        {
-            ++linearIndex;
-            return *this;
-        }
-        iterator operator++(int)
-        {
-            iterator tmp = *this;
-            ++(*this);
-            return tmp;
-        }
-        bool operator==(const iterator& other) const
-        {
-            return tensor == other.tensor && linearIndex == other.linearIndex;
-        }
-        bool operator!=(const iterator& other) const
-        {
-            return !(*this == other);
-        }
-    private:
-        Tensor* tensor;
-        size_t linearIndex;
-    };
-    class const_iterator
-    {
-    public:
-        using iterator_category = std::forward_iterator_tag;
-        using value_type = const T;
-        using difference_type = std::ptrdiff_t;
-        using pointer = const T*;
-        using reference = const T&;
-
-        const_iterator() : tensor(nullptr), linearIndex(0) {}
-        const_iterator(const Tensor* tensor, size_t linear_idx)
-            : tensor(tensor), linearIndex(linear_idx)
-        {}
-        reference operator*() const
-        {
-            if (!tensor || linearIndex >= tensor->GetTotalElements())
-            {
-                throw std::out_of_range("Iterator out of range");
-            }
-            std::vector<int> indices = tensor->LinearToIndices(linearIndex);
-            size_t currOffset = tensor->CalculateOffset(indices);
-            return *(tensor->pdata.get() + currOffset);
-        }
-        pointer operator->() const
-        {
-            return &(**this);
-        }
-        const_iterator& operator++()
-        {
-            ++linearIndex;
-            return *this;
-        }
-        const_iterator operator++(int)
-        {
-            const_iterator tmp = *this;
-            ++(*this);
-            return tmp;
-        }
-        bool operator==(const const_iterator& other) const
-        {
-            return tensor == other.tensor && linearIndex == other.linearIndex;
-        }
-        bool operator!=(const const_iterator& other) const
-        {
-            return !(*this == other);
-        }
-    private:
-        const Tensor* tensor;
-        size_t linearIndex;
-    };
-    iterator begin()
-    {
-        return iterator(this, 0);
-    }
-    const_iterator begin() const
-    {
-        return const_iterator(this, 0);
-    }
-    const_iterator cbegin() const
-    {
-        return const_iterator(this, 0);
-    }
-    iterator end()
-    {
-        return iterator(this, GetTotalElements());
-    }
-    const_iterator end() const
-    {
-        return const_iterator(this, GetTotalElements());
-    }
-    const_iterator cend() const
-    {
-        return const_iterator(this, GetTotalElements());
-    }
-
-
-    std::shared_ptr<T> Allocate(size_t newSize) const
-    {
-        return shared_ptr<T>(new T[newSize], [](T* p) {delete[] p; });
-    }
-    const T& At(const std::vector<int>& indices, bool checkBounds = true) const
-    {
-        size_t curr_offset = checkBounds ? CalculateOffset(indices) : CalculateOffsetUnChecked(indices);
-        return *(pdata.get() + curr_offset);
-    }
-    T& At(const std::vector<int>& indices, bool checkBounds = true)
-    {
-        size_t curr_offset = checkBounds ? CalculateOffset(indices) : CalculateOffsetUnChecked(indices);
-        return *(pdata.get() + curr_offset);
-    }
+    virtual std::shared_ptr<T> Allocate(size_t elements) const = 0;
+    virtual const T& At(const std::vector<int>& indices, bool checkBounds = true) const = 0;
+    virtual T& At(const std::vector<int>& indices, bool checkBounds = true) = 0;
     bool CheckDims(const vector<int>& dims)
     {
         if (dims.size() != shape.size())
@@ -444,160 +264,57 @@ public:
         }
         return Contiguous();
     }
-    shared_ptr<Tensor> Contiguous() const
-    {
-        auto result = Create();
-        if (IsContiguous())
-        {
-            *result = *this;
-            return shared_ptr<Tensor>(result);
-        }
-        size_t newSize = GetTotalElements();
-        result->pdata = Allocate(newSize);
-        result->offset = 0;
-        result->shape = this->shape;
-        result->strides = GetContiguousStrides();
-        std::vector<int> indices(shape.size(), 0);
-        auto dest_ptr = result->pdata.get();
-        CopyRecursive(0, indices, dest_ptr);
-        return result;
-    }
-    void ContiguousInplace()
-    {
-        if (IsContiguous()) return;
-
-        size_t newSize = GetTotalElements();
-        auto new_pdata = Allocate(newSize);
-        std::vector<int> cont_strides = GetContiguousStrides();
-        std::vector<int> indices(shape.size(), 0);
-        auto new_ptr = new_pdata.get();
-        CopyRecursive(0, indices, new_ptr);
-
-        pdata = new_pdata;
-        offset = 0;
-        strides = std::move(cont_strides);
-    }
-    static shared_ptr<Tensor> Create()
-    {
-        return make_shared<Tensor>();
-    }
-    static shared_ptr<Tensor> Create(const std::vector<int>& shape)
-    {
-		auto tensor = make_shared<Tensor>();
-		tensor->shape = shape;
-		tensor->strides = GetContiguousStrides(shape);
-        size_t total = tensor->GetTotalElements();
-        tensor->pdata = std::shared_ptr<T>(new T[total], std::default_delete<T[]>());
-        tensor->offset = 0;
-        return tensor;
-    }
-    T* Data()
-    {
-        return pdata.get() + offset;
-	}
+    virtual shared_ptr<Tensor<T>> Contiguous() const = 0;
+    virtual void Contiguous_() = 0;
+    virtual shared_ptr<T> CopyDataToHost() const = 0;
+    virtual shared_ptr<Tensor<T>> Create() const = 0;
+    virtual shared_ptr<Tensor<T>> Create(const std::vector<int>& shape) const = 0;
+    
     int Dim() const
     {
         return (int)shape.size();
 	}
-    shared_ptr<Tensor> Expand(const std::vector<int>& new_shape) const
+    shared_ptr<Tensor> Expand(const std::vector<int>& newShape) const
     {
-        if (new_shape.size() < shape.size())
+        if (newShape.size() < shape.size())
         {
             printf("New shape must have at least as many dimensions\n");
             return nullptr;
         }
         // 检查是否可扩展
-        int size_diff = (int)new_shape.size() - (int)shape.size();
+        int size_diff = (int)newShape.size() - (int)shape.size();
         for (auto i = 0; i < (int)shape.size(); ++i)
         {
-            if (shape[i] != new_shape[i + size_diff] && shape[i] != 1)
+            if (shape[i] != newShape[i + size_diff] && shape[i] != 1)
             {
-                printf("Cannot expand dimension %d from %d to %d\n", i, shape[i], new_shape[i + size_diff]);
+                printf("Cannot expand dimension %d from %d to %d\n", i, shape[i], newShape[i + size_diff]);
                 return nullptr;
             }
         }
         auto result = Create();
         result->pdata = this->pdata;
         result->offset = this->offset;
-        result->shape = new_shape;
-        result->strides.resize(new_shape.size());
-        // 计算新步长
-        for (int i = (int)new_shape.size() - 1; i >= 0; --i)
+        result->shape = newShape;
+        result->strides.resize(newShape.size());
+        for (int i = (int)newShape.size() - 1; i >= 0; --i)
         {
             int original_dim = i - size_diff;
             if (original_dim >= 0 && shape[original_dim] == 1)
             {
-                // 原始维度为1，可以广播，步长为0
                 result->strides[i] = 0;
             }
             else if (original_dim >= 0)
             {
-                // 普通维度，使用原始步长
                 result->strides[i] = strides[original_dim];
             }
             else
             {
-                // 新增的维度，步长设为0（可以广播）
                 result->strides[i] = 0;
             }
         }
         return result;
     }
-    void ForEachBatch(const std::function<void(T*, int, int)>& func) const
-    {
-        if (shape.empty()) return;
-        int inner_dim = (int)shape.size() - 1;
-        int inner_size = shape[inner_dim];
-        int inner_stride = strides[inner_dim];
 
-        std::vector<int> outer_indices(shape.size() - 1, 0);
-        std::function<void(int)> traverse_outer = [&](int depth) {
-            if (depth == static_cast<int>(shape.size() - 1))
-            {
-                int offset = this->offset;
-                for (size_t i = 0; i < outer_indices.size(); ++i)
-                {
-                    offset += outer_indices[i] * strides[i];
-                }
-                T* batch_start = pdata.get() + offset;
-                func(batch_start, inner_size, inner_stride);
-                return;
-            }
-            for (int i = 0; i < shape[depth]; ++i)
-            {
-                outer_indices[depth] = i;
-                traverse_outer(depth + 1);
-            }
-            };
-        traverse_outer(0);
-    }
-    void ForEachLinear(const std::function<void(T, const std::vector<int>&)>& func) const
-    {
-        size_t total_elements = GetTotalElements();
-        std::vector<int> indices(shape.size(), 0);
-        for (size_t i = 0; i < total_elements; ++i)
-        {
-            // 使用strides计算正确的内存位置
-            auto value = At(indices, false);
-            func(value, indices);
-            UpdateIndices(indices);
-        }
-    }
-    static shared_ptr<Tensor> Full(const std::vector<int>& shape, T value)
-    {
-        auto tensor = Create(shape);
-        T* data_ptr = tensor->pdata.get();
-        size_t total = tensor->GetTotalElements();
-        if (value == T(0))
-        {
-            std::memset(data_ptr, 0, total * sizeof(T));
-        }
-        else
-        {
-            std::fill(data_ptr, data_ptr + total, value);
-        }
-        return tensor;
-    }
     std::vector<int> GetContiguousStrides() const
     {
         return GetContiguousStrides(shape);
@@ -617,6 +334,10 @@ public:
         }
         return cont_strides;
     }
+    shared_ptr<T> GetData() const
+    {
+        return pdata;
+	}
     std::vector<int> GetDimensionOrderByStride() const
     {
         std::vector<std::pair<int, int>> stride_pairs;
@@ -664,6 +385,7 @@ public:
         }
         return total;
     }
+    virtual bool HasZero() const = 0;
     bool IsContiguous() const
     {
         if (strides.empty() || shape.empty())
@@ -750,14 +472,6 @@ public:
         result->strides = this->strides;
         return result;
     }
-    static shared_ptr<Tensor> Ones(const std::vector<int>& shape)
-    {
-        auto tensor = Create(shape);
-        T* data_ptr = tensor->pdata.get();
-        size_t total = tensor->GetTotalElements();
-        std::fill(data_ptr, data_ptr + total, T(1));
-        return tensor;
-    }
     bool Permute(const vector<int>& dims)
     {
         if (!CheckDims(dims))
@@ -782,11 +496,12 @@ public:
             std::cout << "[]" << std::endl;
             return;
         }
+		auto hostData = CopyDataToHost();
         std::vector<int> indices(shape.size(), 0);
         if (pretty)
-            PrintPretty(0, indices);
+            PrintPretty(0, indices, hostData, offset, shape, strides);
         else
-            PrintCompact(0, indices);
+            PrintCompact(0, indices, hostData, offset, shape, strides);
         std::cout << std::endl;
     }
     void PrintInfo() const
@@ -818,54 +533,30 @@ public:
         {
             return nullptr;
         }
-        std::vector<int> new_shape(shape.size());
+        std::vector<int> newShape(shape.size());
         for (size_t i = 0; i < shape.size(); ++i)
         {
-            new_shape[i] = shape[i] * repeats[i];
+            newShape[i] = shape[i] * repeats[i];
         }
         auto result = Create();
-        int total_elements = 1;
-        for (int s : new_shape)
-            total_elements *= s;
+        int elements = 1;
+        for (int s : newShape)
+            elements *= s;
 
-        result->pdata = Allocate(total_elements);
+        result->pdata = Allocate(elements);
         result->offset = 0;
-        result->shape = new_shape;
+        result->shape = newShape;
         result->strides = result->GetContiguousStrides();
 
         std::vector<int> indices(shape.size(), 0);
-        std::vector<int> new_indices(new_shape.size(), 0);
-        auto dest_ptr = result->pdata.get();
-        std::function<void(int)> repeat_recursive = [&](int dim) {
-            if (dim == shape.size() - 1)
-            {
-                size_t curr_offset = this->offset;
-                for (size_t i = 0; i < indices.size(); ++i)
-                {
-                    curr_offset += indices[i] * strides[i];
-                }
-                auto dataStart = pdata.get() + curr_offset;
-                for (auto j = 0; j < shape[dim]; ++j)
-                {
-                    *dest_ptr++ = *(dataStart + j * strides[dim]);
-                }
-                return;
-            }
-            for (int i = 0; i < repeats[dim]; ++i)
-            {
-                for (int j = 0; j < shape[dim]; ++j)
-                {
-                    indices[dim] = j;
-                    repeat_recursive(dim + 1);
-                }
-            }
-            };
-        repeat_recursive(0);
+        auto destData = result->pdata.get();
+        RepeatRecursive(0, repeats, destData, indices);
         return result;
     }
-    shared_ptr<Tensor> Reshape(const std::vector<int>& new_shape) const
+    virtual void RepeatRecursive(int dim, const std::vector<int>& repeats, T*& destData, vector<int>& indices) const = 0;
+    shared_ptr<Tensor> Reshape(const std::vector<int>& newShape) const
     {
-        return Contiguous()->View(new_shape);
+        return Contiguous()->View(newShape);
     }
     shared_ptr<Tensor> Squeeze() const
     {
@@ -887,10 +578,6 @@ public:
             result->strides = { 1 };
         }
         return result;
-    }
-    size_t Size() const
-    {
-		return GetTotalElements();
     }
     shared_ptr<Tensor> Squeeze(const std::vector<int>& dims) const
     {
@@ -1012,79 +699,51 @@ public:
         }
         return result;
     }
-    shared_ptr<Tensor> View(const std::vector<int>& new_shape) const
+    shared_ptr<Tensor> View(const std::vector<int>& newShape) const
     {
-        size_t new_total = 1;
-        int minus_one_idx = -1;
-        for (auto i = 0; i < (int)new_shape.size(); ++i)
+        vector<int> cleanedShape = newShape;
+        if (!ValidShape(cleanedShape))
         {
-            if (new_shape[i] <= 0)
-            {
-                if (new_shape[i] == -1)
-                {
-                    if (minus_one_idx != -1)
-                    {
-                        printf("Only one dimension can be -1\n");
-                        return nullptr;
-                    }
-                    minus_one_idx = i;
-                }
-                else
-                {
-                    printf("Dimensions must be positive\n");
-                    return nullptr;
-                }
-            }
-            new_total *= new_shape[i];
+            return nullptr;
         }
-        size_t old_total = GetTotalElements();
-        if (minus_one_idx != -1)
-        {
-            if (old_total % new_total != 0)
-            {
-                printf("Shape is not divisible\n");
-                return nullptr;
-            }
-            std::vector<int> final_shape = new_shape;
-            final_shape[minus_one_idx] = (int)(old_total / new_total);
-            return ViewImpl(final_shape);
-        }
-        else
-        {
-            if (new_total != old_total)
-            {
-                printf("New shape must have same number of elements\n");
-                return nullptr;
-            }
-            return ViewImpl(new_shape);
-        }
+        return ViewImpl(newShape);
     }
-    static shared_ptr<Tensor> Zeros(const std::vector<int>& shape)
-    {
-        auto tensor = Create(shape);
-        T* data_ptr = tensor->pdata.get();
-        size_t total_bytes = tensor->GetTotalElements() * sizeof(T);
-        std::memset(data_ptr, 0, total_bytes);
-        return tensor;
-    }
-private:
+
+protected:
     uint64_t CalculateOffset(const std::vector<int>& indices) const
     {
         if (indices.size() != shape.size())
         {
             throw std::invalid_argument("Number of indices must match tensor dimensions");
         }
-        uint64_t curr_offset = this->offset;
+        uint64_t currOffset = this->offset;
         for (size_t i = 0; i < indices.size(); ++i)
         {
             if (indices[i] < 0 || indices[i] >= shape[i])
             {
                 throw std::out_of_range("Index out of bounds");
             }
-            curr_offset += indices[i] * strides[i];
+            currOffset += indices[i] * strides[i];
         }
-        return curr_offset;
+        return currOffset;
     }
+    static uint64_t CalculateOffset(const std::vector<int>& indices, uint64_t offset, const std::vector<int>& shape, const std::vector<int>& strides)
+    {
+        if (indices.size() != shape.size())
+        {
+            throw std::invalid_argument("Number of indices must match tensor dimensions");
+        }
+        uint64_t currOffset = offset;
+        for (size_t i = 0; i < indices.size(); ++i)
+        {
+            if (indices[i] < 0 || indices[i] >= shape[i])
+            {
+                throw std::out_of_range("Index out of bounds");
+            }
+            currOffset += indices[i] * strides[i];
+        }
+        return currOffset;
+	}
     uint64_t CalculateOffsetUnChecked(const std::vector<int>& indices) const
     {
         uint64_t curr_offset = this->offset;
@@ -1093,6 +752,22 @@ private:
             curr_offset += indices[i] * strides[i];
         }
         return curr_offset;
+    }
+    bool CheckDevice(const Tensor& other) const
+    {
+        if (device != other.device)
+        {
+            throw std::invalid_argument("Tensor Device Do not match!");
+        }
+        return true;
+    }
+    bool CheckShape(const Tensor& other) const
+    {
+        if (shape != other.shape)
+        {
+            throw std::invalid_argument("Tensor shapes Do not match!");
+        }
+        return true;
     }
     bool CheckIndex(const std::vector<int>& indices) const
     {
@@ -1107,68 +782,21 @@ private:
     }
     shared_ptr<Tensor> CloneContiguous() const
     {
-        auto result = Create();
-		auto elementCount = GetTotalElements();
-        result->pdata = std::shared_ptr<T>(new T[elementCount], std::default_delete<T[]>());
-        std::memcpy(result->pdata.get(), pdata.get() + offset, elementCount * sizeof(T));
-        result->offset = 0;
-        result->shape = shape;
-        result->strides = strides;
+        auto result = Create(shape);
+        CopyDataContiguous(result->pdata.get());
         return result;
     }
     shared_ptr<Tensor> CloneDenseView() const
     {
-        auto result = Create();
-        auto elementCount = GetTotalElements();
-        result->pdata = std::shared_ptr<T>(new T[elementCount], std::default_delete<T[]>());
-        std::memcpy(result->pdata.get(), pdata.get() + offset, elementCount * sizeof(T));
+        auto result = Create(shape);
+        CopyDataContiguous(result->pdata.get());
         result->offset = 0;
         result->shape = shape;
         result->strides = strides;
         return result;
     }
-    void CopyData(shared_ptr<Tensor> other) const
-    {
-        // 遍历所有元素，按原步长读取，按新步长写入
-        std::function<void(size_t, size_t, size_t)> copyRecursive =
-            [&](size_t dim, size_t srcOffset, size_t destOffset) {
-            if (dim == shape.size() - 1)
-            {
-                for (auto i = 0; i < shape[dim]; ++i)
-                {
-                    other->pdata.get()[destOffset] = pdata.get()[srcOffset];
-                    ++destOffset;
-                    srcOffset += strides[dim];
-                }
-                
-                return;
-            }
-            for (int i = 0; i < shape[dim]; i++)
-            {
-                copyRecursive(dim + 1, srcOffset + i * strides[dim], destOffset + i * other->strides[dim]);
-            }};
-
-        copyRecursive(0, offset, 0);
-    }
-    void CopyRecursive(int dim, std::vector<int>& indices, T*& new_ptr, size_t currOffset = 0) const
-    {
-        if (dim == shape.size() - 1)
-        {
-            T* currData = pdata.get() + this->offset + currOffset;
-            for (auto i = 0; i < shape[dim]; ++i)
-            {
-                *new_ptr++ = *currData;
-                currData += strides[dim];
-            }
-            return;
-        }
-        for (int i = 0; i < shape[dim]; ++i)
-        {
-            indices[dim] = i;
-			size_t newOffset = currOffset + i * strides[dim];
-            CopyRecursive(dim + 1, indices, new_ptr, newOffset);
-        }
-    }
+    virtual void CopyDataContiguous(T* dest) const = 0;
+    virtual void CopyDataNoncontiguous(T* dest) const = 0;
     bool HasValidDenseLayout() const
     {
         if (shape.empty() || !pdata)
@@ -1198,6 +826,49 @@ private:
         }
         return true;
     }
+    bool IsBroadcastable(const std::vector<int>& shape1, const std::vector<int>& shape2)
+    {
+        int ndim1 = shape1.size();
+        int ndim2 = shape2.size();
+        int minDim = std::min(ndim1, ndim2);
+
+        for (int i = 1; i <= minDim; ++i)
+        {
+            int d1 = shape1[ndim1 - i];
+            int d2 = shape2[ndim2 - i];
+            if (d1 != d2 && d1 != 1 && d2 != 1)
+                return false;
+        }
+        return true;
+    }
+    std::vector<int> GetBroadcastShape(const std::vector<int>& shape1, const std::vector<int>& shape2)
+    {
+        std::vector<int> out;
+        int ndim1 = shape1.size();
+        int ndim2 = shape2.size();
+        int maxDim = std::max(ndim1, ndim2);
+
+        for (int i = 1; i <= maxDim; ++i)
+        {
+            int d1 = (i <= ndim1) ? shape1[ndim1 - i] : 1;
+            int d2 = (i <= ndim2) ? shape2[ndim2 - i] : 1;
+            out.push_back(std::max(d1, d2));
+        }
+        std::reverse(out.begin(), out.end());
+        return out;
+    }
+    std::vector<size_t> BroadcastCoordinate(const std::vector<size_t>& outIndex, const std::vector<int>& srcShape)
+    {
+        std::vector<size_t> srcIndex;
+        int offset = outIndex.size() - srcShape.size();
+        for (int i = 0; i < srcShape.size(); ++i)
+        {
+            size_t dim = srcShape[i];
+            size_t idx = outIndex[offset + i];
+            srcIndex.push_back(dim == 1 ? 0 : idx);
+        }
+        return srcIndex;
+    }
     std::vector<int> LinearToIndices(size_t linearIndex) const
     {
         std::vector<int> indices(shape.size());
@@ -1209,7 +880,7 @@ private:
         }
         return indices;
     }
-    void PrintCompact(int dim, std::vector<int>& indices) const
+    static void PrintCompact(int dim, std::vector<int>& indices, const std::shared_ptr<T>& pdata, const size_t& offset, const std::vector<int>& shape, const std::vector<int>& strides)
     {
         std::cout << "[";
 
@@ -1218,7 +889,7 @@ private:
             for (int i = 0; i < shape[dim]; ++i)
             {
                 indices[dim] = i;
-                size_t currOffset = CalculateOffset(indices);
+                size_t currOffset = CalculateOffset(indices, offset, shape, strides);
                 std::cout << *(pdata.get() + currOffset);
                 if (i < shape[dim] - 1)
                     std::cout << ", ";
@@ -1229,14 +900,14 @@ private:
             for (int i = 0; i < shape[dim]; ++i)
             {
                 indices[dim] = i;
-                PrintCompact(dim + 1, indices);
+                PrintCompact(dim + 1, indices, pdata, offset, shape, strides);
                 if (i < shape[dim] - 1)
                     std::cout << ", ";
             }
         }
         std::cout << "]";
     }
-    void PrintPretty(int dim, std::vector<int>& indices) const
+    static void PrintPretty(int dim, std::vector<int>& indices, const std::shared_ptr<T>& pdata, const size_t& offset, const std::vector<int>& shape, const std::vector<int>& strides)
     {
         std::cout << "[";
         if (dim == shape.size() - 1)
@@ -1254,7 +925,7 @@ private:
                             std::cout << " ";
                     }
                 }
-                size_t currOffset = CalculateOffset(indices);
+                size_t currOffset = CalculateOffset(indices, offset, shape, strides);
                 std::cout << *(pdata.get() + currOffset);
             }
         }
@@ -1269,7 +940,7 @@ private:
                     for (int j = 0; j < dim + 1; ++j)
                         std::cout << " ";
                 }
-                PrintPretty(dim + 1, indices);
+                PrintPretty(dim + 1, indices, pdata, offset, shape, strides);
                 if (i < shape[dim] - 1)
                 {
                     std::cout << ",";
@@ -1292,7 +963,50 @@ private:
             dim--;
         }
     }
-    shared_ptr<Tensor> ViewImpl(const std::vector<int>& new_shape) const
+    bool ValidShape(vector<int>& newShape) const
+    {
+        size_t newElements = 1;
+        int minusIndex = -1;
+        for (auto i = 0; i < (int)newShape.size(); ++i)
+        {
+            if (newShape[i] < -1)
+            {
+                printf("Dimensions must be positive\n");
+                return false;
+            }
+            else if (newShape[i] == -1)
+            {
+                if (minusIndex != -1)
+                {
+                    printf("Only one dimension can be -1\n");
+                    return false;
+                }
+                minusIndex = i;
+            }
+            else
+            {
+                newElements *= newShape[i];
+            }
+        }
+        size_t elements = GetTotalElements();
+        if (minusIndex != -1)
+        {
+            if (elements % newElements != 0)
+            {
+                printf("Shape is not divisible\n");
+                return false;
+            }
+            newShape[minusIndex] = (int)(elements / newElements);
+            return true;
+        }
+        else if (newElements != elements)
+        {
+            printf("New shape must have same number of elements\n");
+            return false;
+        }
+        return true;
+    }
+    shared_ptr<Tensor> ViewImpl(const std::vector<int>& newShape) const
     {
         if (!IsContiguous())
         {
@@ -1301,20 +1015,21 @@ private:
         auto result = Create();
         result->pdata = this->pdata;
         result->offset = this->offset;
-        result->shape = new_shape;
-        result->strides.resize(new_shape.size());
+        result->shape = newShape;
+        result->strides.resize(newShape.size());
         int stride = 1;
-        for (int i = (int)new_shape.size() - 1; i >= 0; --i)
+        for (int i = (int)newShape.size() - 1; i >= 0; --i)
         {
             result->strides[i] = stride;
-            stride *= new_shape[i];
+            stride *= newShape[i];
         }
         return result;
     }
 
-private:
+protected:
     std::shared_ptr<T> pdata;
     uint64_t offset;
     vector<int> shape;
     vector<int> strides;
+    DeviceType device;
 };
