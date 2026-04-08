@@ -24,7 +24,7 @@ CudaTensor<T>::CudaTensor(shared_ptr<T> data, uint64_t offset, const vector<int>
 {
 }
 
-// 算术运算实现
+
 template<typename T>
 shared_ptr<Tensor<T>> CudaTensor<T>::Add(const Tensor<T>& other) const
 {
@@ -46,7 +46,6 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Add(const Tensor<T>& other) const
     );
     return result;
 }
-
 template<typename T>
 shared_ptr<Tensor<T>> CudaTensor<T>::Sub(const Tensor<T>& other) const
 {
@@ -69,7 +68,6 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Sub(const Tensor<T>& other) const
 
     return result;
 }
-
 template<typename T>
 shared_ptr<Tensor<T>> CudaTensor<T>::Mul(const Tensor<T>& other) const
 {
@@ -90,7 +88,6 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Mul(const Tensor<T>& other) const
 
     return result;
 }
-
 template<typename T>
 shared_ptr<Tensor<T>> CudaTensor<T>::Div(const Tensor<T>& other) const
 {
@@ -118,7 +115,6 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Div(const Tensor<T>& other) const
 
     return result;
 }
-
 template<typename T>
 shared_ptr<Tensor<T>> CudaTensor<T>::Add(T value) const
 {
@@ -136,7 +132,6 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Add(T value) const
 
     return result;
 }
-
 template<typename T>
 shared_ptr<Tensor<T>> CudaTensor<T>::Sub(T value) const
 {
@@ -154,7 +149,6 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Sub(T value) const
 
     return result;
 }
-
 template<typename T>
 shared_ptr<Tensor<T>> CudaTensor<T>::Mul(T value) const
 {
@@ -172,7 +166,6 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Mul(T value) const
 
     return result;
 }
-
 template<typename T>
 shared_ptr<Tensor<T>> CudaTensor<T>::Div(T value) const
 {
@@ -195,8 +188,6 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Div(T value) const
 
     return result;
 }
-
-// 原地运算实现
 template<typename T>
 void CudaTensor<T>::Add_(const Tensor<T>& other)
 {
@@ -212,7 +203,6 @@ void CudaTensor<T>::Add_(const Tensor<T>& other)
         ElementwiseOp::ADD
     );
 }
-
 template<typename T>
 void CudaTensor<T>::Sub_(const Tensor<T>& other)
 {
@@ -228,7 +218,6 @@ void CudaTensor<T>::Sub_(const Tensor<T>& other)
         ElementwiseOp::SUB
     );
 }
-
 template<typename T>
 void CudaTensor<T>::Mul_(const Tensor<T>& other)
 {
@@ -244,7 +233,6 @@ void CudaTensor<T>::Mul_(const Tensor<T>& other)
         ElementwiseOp::MUL
     );
 }
-
 template<typename T>
 void CudaTensor<T>::Div_(const Tensor<T>& other)
 {
@@ -265,7 +253,6 @@ void CudaTensor<T>::Div_(const Tensor<T>& other)
         ElementwiseOp::DIV
     );
 }
-
 template<typename T>
 void CudaTensor<T>::Add_(T value)
 {
@@ -278,7 +265,6 @@ void CudaTensor<T>::Add_(T value)
         ScalarOp::ADD
     );
 }
-
 template<typename T>
 void CudaTensor<T>::Sub_(T value)
 {
@@ -291,7 +277,6 @@ void CudaTensor<T>::Sub_(T value)
         ScalarOp::SUB
     );
 }
-
 template<typename T>
 void CudaTensor<T>::Mul_(T value)
 {
@@ -304,7 +289,6 @@ void CudaTensor<T>::Mul_(T value)
         ScalarOp::MUL
     );
 }
-
 template<typename T>
 void CudaTensor<T>::Div_(T value)
 {
@@ -323,7 +307,54 @@ void CudaTensor<T>::Div_(T value)
     );
 }
 
-// 内存管理
+template<typename T>
+shared_ptr<Tensor<T>> CudaTensor<T>::Create() const
+{
+    return make_shared<CudaTensor<T>>();
+}
+template<typename T>
+shared_ptr<Tensor<T>> CudaTensor<T>::Create(const std::vector<int>& shape) const
+{
+    return make_shared<CudaTensor<T>>(shape);
+}
+template<typename T>
+shared_ptr<CudaTensor<T>> CudaTensor<T>::CreateCudaTensor()
+{
+    return make_shared<CudaTensor<T>>();
+}
+template<typename T>
+shared_ptr<CudaTensor<T>> CudaTensor<T>::CreateCudaTensor(const std::vector<int>& shape)
+{
+    return make_shared<CudaTensor<T>>(shape);
+}
+template<typename T>
+shared_ptr<CudaTensor<T>> CudaTensor<T>::Arrange(const std::vector<int>& shape, T start, T step)
+{
+    auto tensor = CreateCudaTensor(shape);
+    tensor->FillValueWithStep(start, step);
+    return tensor;
+}
+template<typename T>
+shared_ptr<CudaTensor<T>> CudaTensor<T>::Full(const std::vector<int>& shape, T value)
+{
+    auto tensor = CreateCudaTensor(shape);
+    tensor->FillValue(value);
+    return tensor;
+}
+template<typename T>
+shared_ptr<CudaTensor<T>> CudaTensor<T>::Ones(const std::vector<int>& shape)
+{
+    return Full(shape, T(1));
+}
+template<typename T>
+shared_ptr<CudaTensor<T>> CudaTensor<T>::Zeros(const std::vector<int>& shape)
+{
+    auto tensor = CreateCudaTensor(shape);
+    size_t totalBytes = tensor->GetTotalElements() * sizeof(T);
+    CUDA_CHECK(cudaMemset(tensor->pdata.get(), 0, totalBytes));
+    return tensor;
+}
+
 template<typename T>
 std::shared_ptr<T> CudaTensor<T>::Allocate(size_t elements)
 {
@@ -336,7 +367,6 @@ std::shared_ptr<uint8_t> CudaTensor<T>::AllocateBytes(size_t bytes)
 	auto ptr = AllocateKernel(bytes);
 	return shared_ptr<uint8_t>((uint8_t*)ptr, CudaFreeDirect);
 }
-
 template<typename T>
 T CudaTensor<T>::At(const std::vector<int>& indices, bool checkBounds) const
 {
@@ -351,8 +381,6 @@ T& CudaTensor<T>::At(const std::vector<int>& indices, bool checkBounds)
 {
 	throw std::runtime_error("Direct element access is not supported for CudaTensor. Use CopyDataToHost() to access data on host.");
 }
-
-// 张量操作
 template<typename T>
 shared_ptr<Tensor<T>> CudaTensor<T>::Contiguous() const
 {
@@ -379,8 +407,6 @@ void CudaTensor<T>::Contiguous_()
     this->strides = this->GetContiguousStrides();
     CUDA_CHECK(cudaStreamSynchronize(nullptr));
 }
-
-
 template<typename T>
 bool CudaTensor<T>::HasZero() const
 {
@@ -412,63 +438,6 @@ bool CudaTensor<T>::CheckEqual(const vector<T>& data) const
 }
 
 
-// 工厂方法
-template<typename T>
-shared_ptr<Tensor<T>> CudaTensor<T>::Create() const
-{
-    return make_shared<CudaTensor<T>>();
-}
-
-template<typename T>
-shared_ptr<Tensor<T>> CudaTensor<T>::Create(const std::vector<int>& shape) const
-{
-    return make_shared<CudaTensor<T>>(shape);
-}
-template<typename T>
-shared_ptr<CudaTensor<T>> CudaTensor<T>::CreateCudaTensor()
-{
-    return make_shared<CudaTensor<T>>();
-}
-
-template<typename T>
-shared_ptr<CudaTensor<T>> CudaTensor<T>::CreateCudaTensor(const std::vector<int>& shape)
-{
-    return make_shared<CudaTensor<T>>(shape);
-}
-
-template<typename T>
-shared_ptr<CudaTensor<T>> CudaTensor<T>::Full(const std::vector<int>& shape, T value)
-{
-    auto tensor = CreateCudaTensor(shape);
-    tensor->FillValue(value);
-    return tensor;
-}
-
-template<typename T>
-shared_ptr<CudaTensor<T>> CudaTensor<T>::Ones(const std::vector<int>& shape)
-{
-    return Full(shape, T(1));
-}
-
-template<typename T>
-shared_ptr<CudaTensor<T>> CudaTensor<T>::Zeros(const std::vector<int>& shape)
-{
-    auto tensor = CreateCudaTensor(shape);
-    size_t totalBytes = tensor->GetTotalElements() * sizeof(T);
-    CUDA_CHECK(cudaMemset(tensor->pdata.get(), 0, totalBytes));
-    return tensor;
-}
-
-template<typename T>
-shared_ptr<CudaTensor<T>> CudaTensor<T>::Arrange(const std::vector<int>& shape, T start, T step)
-{
-    auto tensor = CreateCudaTensor(shape);
-    tensor->FillValueWithStep(start, step);
-    return tensor;
-}
-
-
-// 保护方法实现
 template<typename T>
 void CudaTensor<T>::CopyDataContiguous(T* dest) const
 {

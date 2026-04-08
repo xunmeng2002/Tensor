@@ -32,26 +32,22 @@ public:
     virtual void Mul_(T value) override;
     virtual void Div_(T value) override;
 
-    static std::shared_ptr<T> Allocate(size_t elements);
-    virtual T At(const std::vector<int>& indices, bool checkBounds = true) const override;
-    virtual T& At(const std::vector<int>& indices, bool checkBounds = true) override;
-    
-
-    virtual bool CheckEqual(const vector<T>& data) const override;
-    virtual shared_ptr<Tensor<T>> Contiguous() const override;
-    virtual void Contiguous_() override;
-    
-    //工厂方法
     virtual shared_ptr<Tensor<T>> Create() const override;
     virtual shared_ptr<Tensor<T>> Create(const std::vector<int>& shape) const override;
     static shared_ptr<CpuTensor<T>> CreateCpuTensor();
     static shared_ptr<CpuTensor<T>> CreateCpuTensor(const std::vector<int>& shape);
+    static shared_ptr<CpuTensor<T>> Arrange(const std::vector<int>& shape, T start, T step = 1);
     static shared_ptr<CpuTensor<T>> Full(const std::vector<int>& shape, T value);
     static shared_ptr<CpuTensor<T>> Ones(const std::vector<int>& shape);
     static shared_ptr<CpuTensor<T>> Zeros(const std::vector<int>& shape);
-    static shared_ptr<CpuTensor<T>> Arrange(const std::vector<int>& shape, T start, T step = 1);
+    
 
-
+    static std::shared_ptr<T> Allocate(size_t elements);
+    virtual T At(const std::vector<int>& indices, bool checkBounds = true) const override;
+    virtual T& At(const std::vector<int>& indices, bool checkBounds = true) override;
+    virtual bool CheckEqual(const vector<T>& data) const override;
+    virtual shared_ptr<Tensor<T>> Contiguous() const override;
+    virtual void Contiguous_() override;
     virtual bool HasZero() const override;
 
 

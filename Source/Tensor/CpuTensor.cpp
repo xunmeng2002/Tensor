@@ -426,6 +426,59 @@ void CpuTensor<T>::Div_(T value)
     }
 }
 
+
+template<typename T>
+shared_ptr<Tensor<T>> CpuTensor<T>::Create() const
+{
+    return make_shared<CpuTensor<T>>();
+}
+template<typename T>
+shared_ptr<Tensor<T>> CpuTensor<T>::Create(const std::vector<int>& shape) const
+{
+    return make_shared<CpuTensor<T>>(shape);
+}
+template<typename T>
+shared_ptr<CpuTensor<T>> CpuTensor<T>::CreateCpuTensor()
+{
+    return make_shared<CpuTensor<T>>();
+}
+template<typename T>
+shared_ptr<CpuTensor<T>> CpuTensor<T>::CreateCpuTensor(const std::vector<int>& shape)
+{
+    return make_shared<CpuTensor<T>>(shape);
+}
+template<typename T>
+shared_ptr<CpuTensor<T>> CpuTensor<T>::Arrange(const std::vector<int>& shape, T start, T step)
+{
+    auto tensor = CreateCpuTensor(shape);
+    tensor->FillValueWithStep(start, step);
+    return tensor;
+}
+template<typename T>
+shared_ptr<CpuTensor<T>> CpuTensor<T>::Full(const std::vector<int>& shape, T value)
+{
+    auto tensor = CreateCpuTensor(shape);
+    tensor->FillValue(value);
+    return tensor;
+}
+template<typename T>
+shared_ptr<CpuTensor<T>> CpuTensor<T>::Ones(const std::vector<int>& shape)
+{
+    auto tensor = CreateCpuTensor(shape);
+    tensor->FillValue(T(1));
+    return tensor;
+}
+template<typename T>
+shared_ptr<CpuTensor<T>> CpuTensor<T>::Zeros(const std::vector<int>& shape)
+{
+    auto tensor = CreateCpuTensor(shape);
+    T* data_ptr = tensor->pdata.get();
+    size_t total_bytes = tensor->GetTotalElements() * sizeof(T);
+    std::memset(data_ptr, 0, total_bytes);
+    return tensor;
+}
+
+
 template<typename T>
 std::shared_ptr<T> CpuTensor<T>::Allocate(size_t elements)
 {
@@ -498,56 +551,6 @@ void CpuTensor<T>::Contiguous_()
     this->strides = this->GetContiguousStrides();
 }
 template<typename T>
-shared_ptr<Tensor<T>> CpuTensor<T>::Create() const
-{
-    return make_shared<CpuTensor<T>>();
-}
-template<typename T>
-shared_ptr<Tensor<T>> CpuTensor<T>::Create(const std::vector<int>& shape) const
-{
-    return make_shared<CpuTensor<T>>(shape);
-}
-template<typename T>
-shared_ptr<CpuTensor<T>> CpuTensor<T>::CreateCpuTensor()
-{
-    return make_shared<CpuTensor<T>>();
-}
-template<typename T>
-shared_ptr<CpuTensor<T>> CpuTensor<T>::CreateCpuTensor(const std::vector<int>& shape)
-{
-    return make_shared<CpuTensor<T>>(shape);
-}
-template<typename T>
-shared_ptr<CpuTensor<T>> CpuTensor<T>::Full(const std::vector<int>& shape, T value)
-{
-    auto tensor = CreateCpuTensor(shape);
-    tensor->FillValue(value);
-    return tensor;
-}
-template<typename T>
-shared_ptr<CpuTensor<T>> CpuTensor<T>::Ones(const std::vector<int>& shape)
-{
-    auto tensor = CreateCpuTensor(shape);
-    tensor->FillValue(T(1));
-    return tensor;
-}
-template<typename T>
-shared_ptr<CpuTensor<T>> CpuTensor<T>::Zeros(const std::vector<int>& shape)
-{
-    auto tensor = CreateCpuTensor(shape);
-    T* data_ptr = tensor->pdata.get();
-    size_t total_bytes = tensor->GetTotalElements() * sizeof(T);
-    std::memset(data_ptr, 0, total_bytes);
-    return tensor;
-}
-template<typename T>
-shared_ptr<CpuTensor<T>> CpuTensor<T>::Arrange(const std::vector<int>& shape, T start, T step)
-{
-    auto tensor = CreateCpuTensor(shape);
-    tensor->FillValueWithStep(start, step);
-    return tensor;
-}
-template<typename T>
 bool CpuTensor<T>::HasZero() const
 {
     auto elements = this->GetTotalElements();
@@ -597,6 +600,7 @@ shared_ptr<T> CpuTensor<T>::CopyDataToHost() const
 {
     return this->pdata;
 }
+
 
 template<typename T>
 void CpuTensor<T>::CopyDataRecursive(int dim, T*& dest, size_t currOffset) const
