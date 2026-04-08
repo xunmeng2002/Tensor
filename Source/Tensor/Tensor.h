@@ -136,23 +136,6 @@ public:
         return *(pdata.get() + offset);
     }
     
-    virtual shared_ptr<Tensor<T>> Add(const Tensor<T>& other) const = 0;
-    virtual shared_ptr<Tensor<T>> Sub(const Tensor<T>& other) const = 0;
-    virtual shared_ptr<Tensor<T>> Mul(const Tensor<T>& other) const = 0;
-    virtual shared_ptr<Tensor<T>> Div(const Tensor<T>& other) const = 0;
-    virtual shared_ptr<Tensor<T>> Add(T value) const = 0;
-    virtual shared_ptr<Tensor<T>> Sub(T value) const = 0;
-    virtual shared_ptr<Tensor<T>> Mul(T value) const = 0;
-    virtual shared_ptr<Tensor<T>> Div(T value) const = 0;
-    virtual void Add_(const Tensor<T>& other) = 0;
-    virtual void Sub_(const Tensor<T>& other) = 0;
-    virtual void Mul_(const Tensor<T>& other) = 0;
-    virtual void Div_(const Tensor<T>& other) = 0;
-    virtual void Add_(T value) = 0;
-    virtual void Sub_(T value) = 0;
-    virtual void Mul_(T value) = 0;
-    virtual void Div_(T value) = 0;
-
     shared_ptr<Tensor> operator+(const Tensor& other) const
     {
         return Add(other);
@@ -226,9 +209,25 @@ public:
         return *this;
     }
 
+    virtual shared_ptr<Tensor<T>> Add(const Tensor<T>& other) const = 0;
+    virtual shared_ptr<Tensor<T>> Sub(const Tensor<T>& other) const = 0;
+    virtual shared_ptr<Tensor<T>> Mul(const Tensor<T>& other) const = 0;
+    virtual shared_ptr<Tensor<T>> Div(const Tensor<T>& other) const = 0;
+    virtual shared_ptr<Tensor<T>> Add(T value) const = 0;
+    virtual shared_ptr<Tensor<T>> Sub(T value) const = 0;
+    virtual shared_ptr<Tensor<T>> Mul(T value) const = 0;
+    virtual shared_ptr<Tensor<T>> Div(T value) const = 0;
+    virtual void Add_(const Tensor<T>& other) = 0;
+    virtual void Sub_(const Tensor<T>& other) = 0;
+    virtual void Mul_(const Tensor<T>& other) = 0;
+    virtual void Div_(const Tensor<T>& other) = 0;
+    virtual void Add_(T value) = 0;
+    virtual void Sub_(T value) = 0;
+    virtual void Mul_(T value) = 0;
+    virtual void Div_(T value) = 0;
 
-    virtual std::shared_ptr<T> Allocate(size_t elements) const = 0;
-    virtual const T& At(const std::vector<int>& indices, bool checkBounds = true) const = 0;
+
+    virtual T At(const std::vector<int>& indices, bool checkBounds = true) const = 0;
     virtual T& At(const std::vector<int>& indices, bool checkBounds = true) = 0;
     bool CheckDims(const vector<int>& dims)
     {
@@ -252,6 +251,8 @@ public:
         }
         return true;
     }
+
+    virtual bool CheckEqual(const vector<T>& data) const = 0;
     shared_ptr<Tensor> Clone() const
     {
         if (IsContiguous())
@@ -266,14 +267,9 @@ public:
     }
     virtual shared_ptr<Tensor<T>> Contiguous() const = 0;
     virtual void Contiguous_() = 0;
-    virtual shared_ptr<T> CopyDataToHost() const = 0;
     virtual shared_ptr<Tensor<T>> Create() const = 0;
     virtual shared_ptr<Tensor<T>> Create(const std::vector<int>& shape) const = 0;
     
-    int Dim() const
-    {
-        return (int)shape.size();
-	}
     shared_ptr<Tensor> Expand(const std::vector<int>& newShape) const
     {
         if (newShape.size() < shape.size())
@@ -338,22 +334,13 @@ public:
     {
         return pdata;
 	}
-    std::vector<int> GetDimensionOrderByStride() const
+    DeviceType GetDevice() const
     {
-        std::vector<std::pair<int, int>> stride_pairs;
-        for (auto i = 0; i < (int)strides.size(); ++i)
-
-        {
-            stride_pairs.push_back({ strides[i], i });
-        }
-        std::sort(stride_pairs.begin(), stride_pairs.end(),
-            [](const auto& a, const auto& b) { return a.first > b.first; });
-        std::vector<int> order;
-        for (const auto& p : stride_pairs)
-        {
-            order.push_back(p.second);
-        }
-        return order;
+        return device;
+    }
+    int GetDim() const
+    {
+        return (int)shape.size();
     }
     size_t GetOffset() const
     {
@@ -368,15 +355,6 @@ public:
         return strides;
 	}
     size_t GetTotalElements() const
-    {
-        size_t total = 1;
-        for (int dimSize : shape)
-        {
-            total *= dimSize;
-        }
-        return total;
-    }
-    static size_t GetTotalElements(const std::vector<int>& shape)
     {
         size_t total = 1;
         for (int dimSize : shape)
@@ -526,6 +504,23 @@ public:
         }
         std::cout << "]" << std::endl;
     }
+    shared_ptr<Tensor> Repeat(int dim, int repeat) const
+    {
+        if (dim < 0) dim += (int)shape.size();
+        if (dim < 0 || dim >= (int)shape.size())
+        {
+            printf("Invalid dimension for repeat\n");
+            return nullptr;
+        }
+        if (repeat <= 0)
+        {
+            printf("Repeat count must be positive\n");
+            return nullptr;
+		}
+        std::vector<int> repeats(shape.size(), 1);
+        repeats[dim] = repeat;
+        return Repeat(repeats);
+    }
     //Repeat 使用传入的repeats容器与原shape的各维度相乘得到新的shape。
     shared_ptr<Tensor> Repeat(const std::vector<int>& repeats) const
     {
@@ -533,27 +528,24 @@ public:
         {
             return nullptr;
         }
+        for (auto r : repeats)
+        {
+            if (r <= 0)
+            {
+                printf("Repeat counts must be positive\n");
+                return nullptr;
+            }
+		}
         std::vector<int> newShape(shape.size());
         for (size_t i = 0; i < shape.size(); ++i)
         {
             newShape[i] = shape[i] * repeats[i];
         }
-        auto result = Create();
-        int elements = 1;
-        for (int s : newShape)
-            elements *= s;
-
-        result->pdata = Allocate(elements);
-        result->offset = 0;
-        result->shape = newShape;
-        result->strides = result->GetContiguousStrides();
-
-        std::vector<int> indices(shape.size(), 0);
-        auto destData = result->pdata.get();
-        RepeatRecursive(0, repeats, destData, indices);
+        auto result = Create(newShape);
+		CopyDataRepeat(result.get(), repeats);
         return result;
     }
-    virtual void RepeatRecursive(int dim, const std::vector<int>& repeats, T*& destData, vector<int>& indices) const = 0;
+
     shared_ptr<Tensor> Reshape(const std::vector<int>& newShape) const
     {
         return Contiguous()->View(newShape);
@@ -579,6 +571,32 @@ public:
         }
         return result;
     }
+    shared_ptr<Tensor> Squeeze(int dim) const
+    {
+        if (dim < 0) dim += (int)shape.size();
+        if (dim < 0 || dim >= static_cast<int>(shape.size()))
+        {
+            printf("Invalid dimension for squeeze\n");
+            return nullptr;
+        }
+        auto result = Create();
+        if (shape[dim] != 1)
+        {
+            *result = *this;
+            return result;
+        }
+        result->pdata = this->pdata;
+        result->offset = this->offset;
+        for (int i = 0; i < (int)shape.size(); ++i)
+        {
+            if (i != dim)
+            {
+                result->shape.push_back(shape[i]);
+                result->strides.push_back(strides[i]);
+            }
+        }
+        return result;
+    }
     shared_ptr<Tensor> Squeeze(const std::vector<int>& dims) const
     {
         std::vector<bool> to_squeeze(shape.size(), false);
@@ -601,32 +619,6 @@ public:
         for (size_t i = 0; i < shape.size(); ++i)
         {
             if (!to_squeeze[i])
-            {
-                result->shape.push_back(shape[i]);
-                result->strides.push_back(strides[i]);
-            }
-        }
-        return result;
-    }
-    shared_ptr<Tensor> Squeeze(int dim) const
-    {
-        if (dim < 0) dim += (int)shape.size();
-        if (dim < 0 || dim >= static_cast<int>(shape.size()))
-        {
-            printf("Invalid dimension for squeeze\n");
-            return nullptr;
-        }
-        auto result = Create();
-        if (shape[dim] != 1)
-        {
-            *result = *this;
-            return result;
-        }
-        result->pdata = this->pdata;
-        result->offset = this->offset;
-        for (int i = 0; i < (int)shape.size(); ++i)
-        {
-            if (i != dim)
             {
                 result->shape.push_back(shape[i]);
                 result->strides.push_back(strides[i]);
@@ -797,6 +789,8 @@ protected:
     }
     virtual void CopyDataContiguous(T* dest) const = 0;
     virtual void CopyDataNoncontiguous(T* dest) const = 0;
+    virtual void CopyDataRepeat(Tensor<T>* repeatTensor, const std::vector<int>& repeats) const = 0;
+    virtual shared_ptr<T> CopyDataToHost() const = 0;
     bool HasValidDenseLayout() const
     {
         if (shape.empty() || !pdata)
@@ -825,49 +819,6 @@ protected:
             expectStride = shape[dim] * strides[dim];
         }
         return true;
-    }
-    bool IsBroadcastable(const std::vector<int>& shape1, const std::vector<int>& shape2)
-    {
-        int ndim1 = shape1.size();
-        int ndim2 = shape2.size();
-        int minDim = std::min(ndim1, ndim2);
-
-        for (int i = 1; i <= minDim; ++i)
-        {
-            int d1 = shape1[ndim1 - i];
-            int d2 = shape2[ndim2 - i];
-            if (d1 != d2 && d1 != 1 && d2 != 1)
-                return false;
-        }
-        return true;
-    }
-    std::vector<int> GetBroadcastShape(const std::vector<int>& shape1, const std::vector<int>& shape2)
-    {
-        std::vector<int> out;
-        int ndim1 = shape1.size();
-        int ndim2 = shape2.size();
-        int maxDim = std::max(ndim1, ndim2);
-
-        for (int i = 1; i <= maxDim; ++i)
-        {
-            int d1 = (i <= ndim1) ? shape1[ndim1 - i] : 1;
-            int d2 = (i <= ndim2) ? shape2[ndim2 - i] : 1;
-            out.push_back(std::max(d1, d2));
-        }
-        std::reverse(out.begin(), out.end());
-        return out;
-    }
-    std::vector<size_t> BroadcastCoordinate(const std::vector<size_t>& outIndex, const std::vector<int>& srcShape)
-    {
-        std::vector<size_t> srcIndex;
-        int offset = outIndex.size() - srcShape.size();
-        for (int i = 0; i < srcShape.size(); ++i)
-        {
-            size_t dim = srcShape[i];
-            size_t idx = outIndex[offset + i];
-            srcIndex.push_back(dim == 1 ? 0 : idx);
-        }
-        return srcIndex;
     }
     std::vector<int> LinearToIndices(size_t linearIndex) const
     {
@@ -951,16 +902,16 @@ protected:
     }
     void UpdateIndices(std::vector<int>& indices) const
     {
-        int dim = (int)shape.size() - 1;
-        while (dim >= 0)
+        for (int dim = (int)shape.size() - 1; dim >= 0; --dim)
         {
-            indices[dim]++;
-            if (indices[dim] < shape[dim])
+            if (++indices[dim] < shape[dim])
             {
                 break;
             }
-            indices[dim] = 0;
-            dim--;
+            else
+            {
+                indices[dim] = 0;
+            }
         }
     }
     bool ValidShape(vector<int>& newShape) const
@@ -1016,13 +967,7 @@ protected:
         result->pdata = this->pdata;
         result->offset = this->offset;
         result->shape = newShape;
-        result->strides.resize(newShape.size());
-        int stride = 1;
-        for (int i = (int)newShape.size() - 1; i >= 0; --i)
-        {
-            result->strides[i] = stride;
-            stride *= newShape[i];
-        }
+        result->strides = result->GetContiguousStrides();
         return result;
     }
 
@@ -1033,3 +978,5 @@ protected:
     vector<int> strides;
     DeviceType device;
 };
+
+

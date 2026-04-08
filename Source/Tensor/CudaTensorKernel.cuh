@@ -15,11 +15,10 @@ using namespace std;
     } while(0)
 
 
-void CudaFreeNone(void* ptr);
-void CudaFreeDirect(void* ptr);
-void CudaFreePool(void* ptr);
+
 
 void* AllocateKernel(size_t size);
+void CudaFreeDirect(void* ptr);
 
 // 元素级运算核函数
 template<typename T>
@@ -85,12 +84,13 @@ __global__ void ScalarInplaceKernel(T* a, size_t elements, T scalar, int op)
     case 3: a[idx] /= scalar; break;
     }
 }
-// 检查是否包含零的核函数
+// 检查是否包含零的核函数，注意由Host对result初始化为false
 template<typename T>
 __global__ void HasZeroKernel(const T* data, size_t elements, bool* result)
 {
     __shared__ bool hasZero;
-    if (threadIdx.x == 0) hasZero = false;
+    if (threadIdx.x == 0)
+        hasZero = false;
     __syncthreads();
 
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -101,6 +101,36 @@ __global__ void HasZeroKernel(const T* data, size_t elements, bool* result)
 
     if (threadIdx.x == 0 && hasZero) {
         *result = true;
+    }
+}
+// 检查是否相等的核函数，注意由Host对result参数初始化为true
+template<typename T>
+__global__ void CheckEqualKernel(const T* left, const T* right, const int* shape, const int* strides, const int dims, int64_t offset, size_t elements, bool* result)
+{
+    __shared__ bool equal;
+    if (threadIdx.x == 0)
+        equal = true;
+    __syncthreads();
+
+    size_t index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index < elements)
+    {
+        int64_t remaining = index;
+        int64_t realOffset = offset;
+        for (int64_t d = dims - 1; d >= 0; --d)
+        {
+            int64_t coord = remaining % shape[d];
+            remaining /= shape[d];
+            realOffset += coord * strides[d];
+        }
+        if (left[realOffset] != right[realOffset])
+            equal = false;
+    }
+    __syncthreads();
+
+    if (threadIdx.x == 0 && !equal)
+    {
+        *result = false;
     }
 }
 // 填充核函数
@@ -141,30 +171,22 @@ __global__ void CopyFromNoncontiguousKernel(const T* __restrict__ src, T* __rest
 }
 
 template<typename T>
-__global__ void RepeatKernel(const T* src_data, T* dst_data, const int64_t* src_shape, const int64_t* src_strides, const int64_t* repeats,
-    const int64_t* dst_shape, int64_t src_offset, int64_t dims, int64_t elements)
+__global__ void RepeatKernel(const T* srcData, T* destData, const int* srcShape, const int* srcStrides,
+    const int* destShape, int64_t src_offset, int dims, int64_t elements)
 {
-    int64_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= elements)
+    int64_t index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= elements)
         return;
-    int64_t dst_coords[8];
-    int64_t remaining = idx;
-    for (int64_t d = dims - 1; d >= 0; --d)
-    {
-        dst_coords[d] = remaining % dst_shape[d];
-        remaining /= dst_shape[d];
-    }
-    int64_t src_coords[8];
+	int64_t remaining = index;
+    int64_t srcIndex = src_offset;
     for (int64_t d = 0; d < dims; ++d)
     {
-        src_coords[d] = dst_coords[d] % src_shape[d];
+		int64_t destCoord = remaining % destShape[d];
+		remaining /= destShape[d];
+		int64_t srcCoord = destCoord % srcShape[d];
+        srcIndex += srcCoord * srcStrides[d];
     }
-    int64_t src_idx = src_offset;
-    for (int64_t d = 0; d < dims; ++d)
-    {
-        src_idx += src_coords[d] * src_strides[d];
-    }
-    dst_data[idx] = src_data[src_idx];
+    destData[index] = srcData[srcIndex];
 }
 
 

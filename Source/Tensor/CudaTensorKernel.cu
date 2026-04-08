@@ -5,17 +5,6 @@
 
 
 
-void CudaFreeNone(void* ptr)
-{
-}
-void CudaFreeDirect(void* ptr)
-{
-    cudaFreeAsync(ptr, nullptr);
-}
-void CudaFreePool(void* ptr)
-{
-}
-
 void* AllocateKernel(size_t size)
 {
     char* ptr = nullptr;
@@ -23,7 +12,10 @@ void* AllocateKernel(size_t size)
     CUDA_CHECK(error);
     return ptr;
 }
-
+void CudaFreeDirect(void* ptr)
+{
+    cudaFreeAsync(ptr, nullptr);
+}
 
 
 

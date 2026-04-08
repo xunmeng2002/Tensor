@@ -1,23 +1,14 @@
-#include "TestTensor.h"
+#include "TestCpuTensor.h"
+#include "TestCudaTensor.h"
 
 using namespace std;
 
 
 int main()
 {
-    TestPermuteAndTranspose();
-    TestContiguous();
-    TestView();
-    TestSqueezeAndUnsqueeze();
-    TestExpand();
-    TestRepeat();
-    TestNarrow();
-    TestZerosAndOnes();
-    TestIterator();
+	//TestCudaTensor::Test();
+	TestCpuTensor::Test();
 
-    TestNarrowAndClone();
-    TestTransposeAndClone();
-    TestNarrowTransposeAndClone();
-    TestExpandAndClone();
+
     return 0;
 }
