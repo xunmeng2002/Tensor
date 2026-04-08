@@ -9,23 +9,11 @@ class CudaTensor : public Tensor<T>
 {
 public:
     using ValueType = T;
-    CudaTensor() noexcept :Tensor<T>(DeviceType::CUDA) {}
-    CudaTensor(const std::vector<int>& shape) noexcept
-        :Tensor<T>(shape, DeviceType::CUDA)
-    {
-        this->pdata = Allocate(this->GetTotalElements());
-    }
-    CudaTensor(T* data, std::function<void(void*)> deleter, uint64_t offset, const vector<int>& shape) noexcept
-        :Tensor<T>(data, deleter, offset, shape, DeviceType::CUDA)
-    {
-    }
-    CudaTensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape) noexcept
-        :Tensor<T>(data, offset, shape, DeviceType::CUDA)
-    {
-    }
+    CudaTensor() noexcept;
+    CudaTensor(const std::vector<int>& shape) noexcept;
+    CudaTensor(T* data, std::function<void(void*)> deleter, uint64_t offset, const vector<int>& shape) noexcept;
+    CudaTensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape) noexcept;
     virtual ~CudaTensor() = default;
-
-
 
     // À„ ı‘ÀÀ„
     virtual shared_ptr<Tensor<T>> Add(const Tensor<T>& other) const override;

@@ -48,18 +48,18 @@ static shared_ptr<CpuTensor<int>> PrepareTestTensor2()
 void TestCpuTensor::Test()
 {
     TestPermuteAndTranspose();
-    //TestContiguous();
-    //TestView();
-    //TestSqueezeAndUnsqueeze();
-    //TestExpand();
-    //TestRepeat();
-    //TestNarrow();
-    //TestZerosAndOnes();
+    TestContiguous();
+    TestView();
+    TestSqueezeAndUnsqueeze();
+    TestExpand();
+    TestRepeat();
+    TestNarrow();
+    TestZerosAndOnes();
 
-    //TestNarrowAndClone();
-    //TestTransposeAndClone();
-    //TestNarrowTransposeAndClone();
-    //TestExpandAndClone();
+    TestNarrowAndClone();
+    TestTransposeAndClone();
+    TestNarrowTransposeAndClone();
+    TestExpandAndClone();
 }
 void TestCpuTensor::TestPermuteAndTranspose()
 {

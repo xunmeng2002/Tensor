@@ -1,5 +1,27 @@
 #include "CpuTensor.h"
 
+
+template<typename T>
+CpuTensor<T>::CpuTensor() noexcept
+    :Tensor<T>(DeviceType::CPU)
+{}
+template<typename T>
+CpuTensor<T>::CpuTensor(const std::vector<int>& shape) noexcept
+    :Tensor<T>(shape, DeviceType::CPU)
+{
+    this->pdata = Allocate(this->GetTotalElements());
+}
+template<typename T>
+CpuTensor<T>::CpuTensor(T* data, std::function<void(void*)> deleter, uint64_t offset, const vector<int>& shape) noexcept 
+    :Tensor<T>(data, deleter, offset, shape, DeviceType::CPU)
+{
+}
+template<typename T>
+CpuTensor<T>::CpuTensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape) noexcept
+    :Tensor<T>(data, offset, shape, DeviceType::CPU)
+{
+}
+
 template<typename T>
 shared_ptr<Tensor<T>> CpuTensor<T>::Add(const Tensor<T>& other) const
 {

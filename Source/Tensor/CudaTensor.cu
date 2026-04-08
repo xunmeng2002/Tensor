@@ -3,6 +3,26 @@
 #include "CudaTensorKernel.cuh"
 
 
+template<typename T>
+CudaTensor<T>::CudaTensor() noexcept
+    :Tensor<T>(DeviceType::CUDA)
+{}
+template<typename T>
+CudaTensor<T>::CudaTensor(const std::vector<int>& shape) noexcept
+    :Tensor<T>(shape, DeviceType::CUDA)
+{
+    this->pdata = Allocate(this->GetTotalElements());
+}
+template<typename T>
+CudaTensor<T>::CudaTensor(T* data, std::function<void(void*)> deleter, uint64_t offset, const vector<int>& shape) noexcept
+    :Tensor<T>(data, deleter, offset, shape, DeviceType::CUDA)
+{
+}
+template<typename T>
+CudaTensor<T>::CudaTensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape) noexcept
+    :Tensor<T>(data, offset, shape, DeviceType::CUDA)
+{
+}
 
 // 算术运算实现
 template<typename T>
