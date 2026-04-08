@@ -473,14 +473,13 @@ shared_ptr<T> CudaTensor<T>::CopyDataToHost() const
     size_t totalBytes = elements * sizeof(T);
     T* hostData = new T[elements];
 
-    if (this->IsContiguous())
+    if (this->HasValidDenseLayout())
     {
         CUDA_CHECK(cudaMemcpy(hostData, this->pdata.get() + this->offset, totalBytes, cudaMemcpyDeviceToHost));
     }
     else
     {
-        auto tensor = Contiguous();
-        CUDA_CHECK(cudaMemcpy(hostData, tensor->GetData().get() + tensor->GetOffset(), totalBytes, cudaMemcpyDeviceToHost));
+		throw std::runtime_error("Copying non-contiguous data to host is not supported. Please call Contiguous() before copying data to host.");
     }
     return shared_ptr<T>(hostData, [](T* p) { delete[] p; });
 }

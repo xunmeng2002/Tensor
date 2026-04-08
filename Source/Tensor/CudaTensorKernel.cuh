@@ -105,7 +105,7 @@ __global__ void HasZeroKernel(const T* data, size_t elements, bool* result)
 }
 // 检查是否相等的核函数，注意由Host对result参数初始化为true
 template<typename T>
-__global__ void CheckEqualKernel(const T* left, const T* right, const int* shape, const int* strides, const int dims, int64_t offset, size_t elements, bool* result)
+__global__ void CheckEqualKernel(const T* tensorData, const T* checkData, const int* shape, const int* strides, const int dims, int64_t offset, size_t elements, bool* result)
 {
     __shared__ bool equal;
     if (threadIdx.x == 0)
@@ -123,7 +123,7 @@ __global__ void CheckEqualKernel(const T* left, const T* right, const int* shape
             remaining /= shape[d];
             realOffset += coord * strides[d];
         }
-        if (left[realOffset] != right[realOffset])
+        if (tensorData[realOffset] != checkData[index])
             equal = false;
     }
     __syncthreads();
@@ -179,7 +179,7 @@ __global__ void RepeatKernel(const T* srcData, T* destData, const int* srcShape,
         return;
 	int64_t remaining = index;
     int64_t srcIndex = src_offset;
-    for (int64_t d = 0; d < dims; ++d)
+    for (int64_t d = dims-1; d >= 0; --d)
     {
 		int64_t destCoord = remaining % destShape[d];
 		remaining /= destShape[d];

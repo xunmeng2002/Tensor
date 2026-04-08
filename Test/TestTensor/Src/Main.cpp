@@ -6,8 +6,8 @@ using namespace std;
 
 int main()
 {
-	//TestCudaTensor::Test();
-	TestCpuTensor::Test();
+	TestCudaTensor::Test();
+	//TestCpuTensor::Test();
 
 
     return 0;

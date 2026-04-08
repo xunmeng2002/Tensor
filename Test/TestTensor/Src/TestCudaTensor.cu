@@ -71,14 +71,14 @@ void TestCudaTensor::TestPermuteAndTranspose()
     
     printf("Transpose for dim 0 and 1\n");
     tensor1->Transpose(0, 1);
+    PrintTensor(tensor1.get());
     CheckTensor(tensor1.get(), 0, {3, 2, 4}, {4, 12, 1}, false,
         { 1, 2, 3, 4, 13, 14, 15, 16, 5, 6, 7, 8, 17, 18, 19, 20, 9, 10, 11, 12, 21, 22, 23, 24 });
-    PrintTensor(tensor1.get());
+    
 
     printf("Permute for {0, 2, 1}\n");
     tensor1->Permute({ 0, 2, 1 });
     PrintTensor(tensor1.get());
-
     CheckTensor(tensor1.get(), 0, { 3, 4, 2 }, { 4, 1, 12 }, false,
         { 1, 13, 2, 14, 3, 15, 4, 16, 5, 17, 6, 18, 7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24 });
     printf("--------End TestPermuteAndTranspose--------\n\n");
