@@ -12,7 +12,9 @@ public:
     CudaTensor() noexcept;
     CudaTensor(const std::vector<int>& shape) noexcept;
     CudaTensor(T* data, std::function<void(void*)> deleter, uint64_t offset, const vector<int>& shape) noexcept;
+    CudaTensor(T* data, std::function<void(void*)> deleter, uint64_t offset, const vector<int>& shape, const vector<int>& strides) noexcept;
     CudaTensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape) noexcept;
+    CudaTensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape, const vector<int>& strides) noexcept;
     virtual ~CudaTensor() = default;
 
     virtual shared_ptr<Tensor<T>> Add(const Tensor<T>& other) const override;
@@ -50,11 +52,11 @@ public:
     virtual shared_ptr<Tensor<T>> Contiguous() const override;
     virtual void Contiguous_() override;
     virtual bool HasZero() const override;
+	virtual shared_ptr<Tensor<T>> ToHost() const override;
 protected:
     virtual void CopyDataContiguous(T* dest) const override;
     virtual void CopyDataNoncontiguous(T* dest) const override;
     virtual void CopyDataRepeat(Tensor<T>* repeatTensor, const std::vector<int>& repeats) const override;
-    virtual shared_ptr<T> CopyDataToHost() const override;
 
 private:
     template<typename VecT>

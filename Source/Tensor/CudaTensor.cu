@@ -1,6 +1,7 @@
 #pragma once
 #include "CudaTensor.h"
 #include "CudaTensorKernel.cuh"
+#include "CpuTensor.h"
 
 
 template<typename T>
@@ -19,8 +20,18 @@ CudaTensor<T>::CudaTensor(T* data, std::function<void(void*)> deleter, uint64_t 
 {
 }
 template<typename T>
+CudaTensor<T>::CudaTensor(T* data, std::function<void(void*)> deleter, uint64_t offset, const vector<int>& shape, const vector<int>& strides) noexcept
+	:Tensor<T>(data, deleter, offset, shape, strides, DeviceType::CUDA)
+{
+}
+template<typename T>
 CudaTensor<T>::CudaTensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape) noexcept
     :Tensor<T>(data, offset, shape, DeviceType::CUDA)
+{
+}
+template<typename T>
+CudaTensor<T>::CudaTensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape, const vector<int>& strides) noexcept
+    :Tensor<T>(data, offset, shape, strides, DeviceType::CUDA)
 {
 }
 
@@ -379,7 +390,30 @@ T CudaTensor<T>::At(const std::vector<int>& indices, bool checkBounds) const
 template<typename T>
 T& CudaTensor<T>::At(const std::vector<int>& indices, bool checkBounds)
 {
-	throw std::runtime_error("Direct element access is not supported for CudaTensor. Use CopyDataToHost() to access data on host.");
+	throw std::runtime_error("Direct element access is not supported for CudaTensor. Use ToHost() to access data on host.");
+}
+template<typename T>
+bool CudaTensor<T>::CheckEqual(const vector<T>& data) const
+{
+    size_t elements = this->GetTotalElements();
+    auto dData = CopyVectorToDevice(data);
+    auto dShape = CopyVectorToDevice(this->shape);
+    auto dStrides = CopyVectorToDevice(this->strides);
+
+    bool* d_result;
+    CUDA_CHECK(cudaMalloc(&d_result, sizeof(bool)));
+    CUDA_CHECK(cudaMemset(d_result, 1, sizeof(bool)));
+    int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
+
+    CheckEqualKernel<T> << <gridSize, defaultBlockSize >> > (this->pdata.get(), (T*)dData.get(), (int*)dShape.get(), (int*)dStrides.get(),
+        this->shape.size(), this->offset, elements, d_result);
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaStreamSynchronize(nullptr));
+
+    bool result;
+    CUDA_CHECK(cudaMemcpy(&result, d_result, sizeof(bool), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaFree(d_result));
+    return result;
 }
 template<typename T>
 shared_ptr<Tensor<T>> CudaTensor<T>::Contiguous() const
@@ -414,27 +448,25 @@ bool CudaTensor<T>::HasZero() const
     return LaunchHasZeroKernel(this->pdata.get() + this->offset, elements, defaultBlockSize);
 }
 template<typename T>
-bool CudaTensor<T>::CheckEqual(const vector<T>& data) const
+shared_ptr<Tensor<T>> CudaTensor<T>::ToHost() const
 {
-    size_t elements = this->GetTotalElements();
-    auto dData = CopyVectorToDevice(data);
-    auto dShape = CopyVectorToDevice(this->shape);
-    auto dStrides = CopyVectorToDevice(this->strides);
-
-    bool* d_result;
-    CUDA_CHECK(cudaMalloc(&d_result, sizeof(bool)));
-    CUDA_CHECK(cudaMemset(d_result, 1, sizeof(bool)));
-    int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
-
-    CheckEqualKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get(), (T*)dData.get(), (int*)dShape.get(), (int*)dStrides.get(),
-        this->shape.size(), this->offset, elements, d_result);
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaStreamSynchronize(nullptr));
-
-    bool result;
-    CUDA_CHECK(cudaMemcpy(&result, d_result, sizeof(bool), cudaMemcpyDeviceToHost));
-    CUDA_CHECK(cudaFree(d_result));
-    return result;
+    if (this->IsContiguous())
+    {
+        auto hostTensor = CpuTensor<T>::CreateCpuTensor(this->shape);
+        CopyDataContiguous(hostTensor->GetData().get());
+		return hostTensor;
+    }
+    else if (this->HasValidDenseLayout())
+    {
+		auto elements = this->GetTotalElements();
+		auto hostData = CpuTensor<T>::Allocate(elements);
+        auto hostTensor = make_shared<CpuTensor<T>>(hostData, this->offset, this->shape, this->strides);
+        CUDA_CHECK(cudaMemcpy(hostData.get(), this->pdata.get() + this->offset, elements * sizeof(T), cudaMemcpyDeviceToHost));
+		return hostTensor;
+    }
+    auto hostTensor = CpuTensor<T>::CreateCpuTensor(this->shape);
+    CopyDataNoncontiguous(hostTensor->GetData().get());
+    return hostTensor;
 }
 
 
@@ -466,23 +498,7 @@ void CudaTensor<T>::CopyDataRepeat(Tensor<T>* repeatTensor, const std::vector<in
     auto gridSize = GetDefaultGridSize(elements);
     RepeatKernel<<<gridSize, defaultBlockSize>>>(this->pdata.get(), repeatTensor->GetData().get(), (int*)dShape.get(), (int*)dStrides.get(), (int*)dDestShape.get(), this->offset, dims, elements);
 }
-template<typename T>
-shared_ptr<T> CudaTensor<T>::CopyDataToHost() const
-{
-    size_t elements = this->GetTotalElements();
-    size_t totalBytes = elements * sizeof(T);
-    T* hostData = new T[elements];
 
-    if (this->HasValidDenseLayout())
-    {
-        CUDA_CHECK(cudaMemcpy(hostData, this->pdata.get() + this->offset, totalBytes, cudaMemcpyDeviceToHost));
-    }
-    else
-    {
-		throw std::runtime_error("Copying non-contiguous data to host is not supported. Please call Contiguous() before copying data to host.");
-    }
-    return shared_ptr<T>(hostData, [](T* p) { delete[] p; });
-}
 
 
 template<typename T>

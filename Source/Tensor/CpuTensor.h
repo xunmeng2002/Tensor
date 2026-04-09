@@ -12,7 +12,9 @@ public:
     CpuTensor() noexcept;
     CpuTensor(const std::vector<int>& shape) noexcept;
     CpuTensor(T* data, std::function<void(void*)> deleter, uint64_t offset, const vector<int>& shape) noexcept;
+    CpuTensor(T* data, std::function<void(void*)> deleter, uint64_t offset, const vector<int>& shape, const vector<int>& strides) noexcept;
     CpuTensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape) noexcept;
+    CpuTensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape, const vector<int>& strides) noexcept;
     virtual ~CpuTensor() = default;
 
     virtual shared_ptr<Tensor<T>> Add(const Tensor<T>& other) const override;
@@ -49,13 +51,13 @@ public:
     virtual shared_ptr<Tensor<T>> Contiguous() const override;
     virtual void Contiguous_() override;
     virtual bool HasZero() const override;
+    virtual shared_ptr<Tensor<T>> ToHost() const override;
 
 
 protected:
     virtual void CopyDataContiguous(T* dest) const override;
     virtual void CopyDataNoncontiguous(T* dest) const override;
     virtual void CopyDataRepeat(Tensor<T>* repeatTensor, const std::vector<int>& repeats) const;
-    virtual shared_ptr<T> CopyDataToHost() const override;
     
 private:
     void CopyDataRecursive(int dim, T*& dest, size_t currOffset) const;

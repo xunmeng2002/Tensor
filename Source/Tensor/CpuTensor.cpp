@@ -17,8 +17,18 @@ CpuTensor<T>::CpuTensor(T* data, std::function<void(void*)> deleter, uint64_t of
 {
 }
 template<typename T>
+CpuTensor<T>::CpuTensor(T* data, std::function<void(void*)> deleter, uint64_t offset, const vector<int>& shape, const vector<int>& strides) noexcept
+    :Tensor<T>(data, deleter, offset, shape, strides, DeviceType::CPU)
+{
+}
+template<typename T>
 CpuTensor<T>::CpuTensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape) noexcept
     :Tensor<T>(data, offset, shape, DeviceType::CPU)
+{
+}
+template<typename T>
+CpuTensor<T>::CpuTensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape, const vector<int>& strides) noexcept
+    :Tensor<T>(data, offset, shape, strides, DeviceType::CPU)
 {
 }
 
@@ -575,7 +585,11 @@ bool CpuTensor<T>::HasZero() const
     }
     return false;
 }
-
+template<typename T>
+shared_ptr<Tensor<T>> CpuTensor<T>::ToHost() const
+{
+	throw std::runtime_error("Tensor is already on CPU");
+}
 
 template<typename T>
 void CpuTensor<T>::CopyDataContiguous(T* dest) const
@@ -594,11 +608,6 @@ void CpuTensor<T>::CopyDataRepeat(Tensor<T>* repeatTensor, const std::vector<int
     auto destPtr = repeatTensor->GetData().get();
     std::vector<int> indices(this->shape.size(), 0);
     this->CopyDataRepeatRecursive(0, repeats, destPtr, indices);
-}
-template<typename T>
-shared_ptr<T> CpuTensor<T>::CopyDataToHost() const
-{
-    return this->pdata;
 }
 
 

@@ -24,7 +24,9 @@ public:
     Tensor(DeviceType device) noexcept;
     Tensor(const vector<int>& shape, DeviceType device) noexcept;
     Tensor(T* data, std::function<void(void*)> deleter, uint64_t offset, const vector<int>& shape, DeviceType device) noexcept;
+    Tensor(T* data, std::function<void(void*)> deleter, uint64_t offset, const vector<int>& shape, const vector<int>& strides, DeviceType device) noexcept;
     Tensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape, DeviceType device) noexcept;
+    Tensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape, const vector<int>& strides, DeviceType device) noexcept;
     virtual ~Tensor() = default;
 
     Tensor(const Tensor& other) noexcept;
@@ -105,6 +107,7 @@ public:
     shared_ptr<Tensor> Squeeze() const;
     shared_ptr<Tensor> Squeeze(int dim) const;
     shared_ptr<Tensor> Squeeze(const std::vector<int>& dims) const;
+    virtual shared_ptr<Tensor> ToHost() const = 0;
     bool Transpose(int dim1, int dim2);
     shared_ptr<Tensor> Unsqueeze(int dim) const;
     shared_ptr<Tensor> View(const std::vector<int>& newShape) const;
@@ -121,7 +124,6 @@ protected:
     virtual void CopyDataContiguous(T* dest) const = 0;
     virtual void CopyDataNoncontiguous(T* dest) const = 0;
     virtual void CopyDataRepeat(Tensor<T>* repeatTensor, const std::vector<int>& repeats) const = 0;
-    virtual shared_ptr<T> CopyDataToHost() const = 0;
     bool HasValidDenseLayout() const;
     std::vector<int> LinearToIndices(size_t linearIndex) const;
     static void PrintCompact(int dim, std::vector<int>& indices, const std::shared_ptr<T>& pdata, const size_t& offset, const std::vector<int>& shape, const std::vector<int>& strides);

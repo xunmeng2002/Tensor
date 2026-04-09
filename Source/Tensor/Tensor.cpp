@@ -17,10 +17,20 @@ Tensor<T>::Tensor(T* data, std::function<void(void*)> deleter, uint64_t offset, 
     strides = GetContiguousStrides(shape);
 }
 template<typename T>
+Tensor<T>::Tensor(T* data, std::function<void(void*)> deleter, uint64_t offset, const vector<int>& shape, const vector<int>& strides, DeviceType device) noexcept
+	:pdata(data, deleter), offset(offset), shape(shape), strides(strides), device(device)
+{
+}
+template<typename T>
 Tensor<T>::Tensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape, DeviceType device) noexcept
     :pdata(data), offset(offset), shape(shape), device(device)
 {
     strides = GetContiguousStrides(shape);
+}
+template<typename T>
+Tensor<T>::Tensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape, const vector<int>& strides, DeviceType device) noexcept
+    :pdata(data), offset(offset), shape(shape), strides(strides), device(device)
+{
 }
 template<typename T>
 Tensor<T>::Tensor(const Tensor& other) noexcept
@@ -472,13 +482,20 @@ void Tensor<T>::Print(bool pretty) const
         std::cout << "[]" << std::endl;
         return;
     }
-	auto hostData = CopyDataToHost();
-    std::vector<int> indices(shape.size(), 0);
-    if (pretty)
-        PrintPretty(0, indices, hostData, offset, shape, strides);
+    if (this->device != DeviceType::CPU)
+    {
+        this->ToHost()->Print(pretty);
+        return;
+	}
     else
-        PrintCompact(0, indices, hostData, offset, shape, strides);
-    std::cout << std::endl;
+    {
+        std::vector<int> indices(shape.size(), 0);
+        if (pretty)
+            PrintPretty(0, indices, pdata, offset, shape, strides);
+        else
+            PrintCompact(0, indices, pdata, offset, shape, strides);
+        std::cout << std::endl;
+    }
 }
 template<typename T>
 void Tensor<T>::PrintInfo() const
