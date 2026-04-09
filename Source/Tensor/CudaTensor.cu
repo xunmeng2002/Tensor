@@ -450,22 +450,25 @@ bool CudaTensor<T>::HasZero() const
 template<typename T>
 shared_ptr<Tensor<T>> CudaTensor<T>::ToHost() const
 {
+    auto elements = this->GetTotalElements();
+    size_t totalBytes = elements * sizeof(T);
     if (this->IsContiguous())
     {
         auto hostTensor = CpuTensor<T>::CreateCpuTensor(this->shape);
-        CopyDataContiguous(hostTensor->GetData().get());
+        CUDA_CHECK(cudaMemcpy(hostTensor->GetData().get(), this->pdata.get() + this->offset, totalBytes, cudaMemcpyDeviceToHost));
 		return hostTensor;
     }
     else if (this->HasValidDenseLayout())
     {
-		auto elements = this->GetTotalElements();
 		auto hostData = CpuTensor<T>::Allocate(elements);
         auto hostTensor = make_shared<CpuTensor<T>>(hostData, this->offset, this->shape, this->strides);
-        CUDA_CHECK(cudaMemcpy(hostData.get(), this->pdata.get() + this->offset, elements * sizeof(T), cudaMemcpyDeviceToHost));
+        CUDA_CHECK(cudaMemcpy(hostData.get(), this->pdata.get() + this->offset, totalBytes, cudaMemcpyDeviceToHost));
 		return hostTensor;
     }
     auto hostTensor = CpuTensor<T>::CreateCpuTensor(this->shape);
-    CopyDataNoncontiguous(hostTensor->GetData().get());
+	auto deviceData = Allocate(elements);
+    CopyDataNoncontiguous(deviceData.get());
+	CUDA_CHECK(cudaMemcpy(hostTensor->GetData().get(), deviceData.get(), totalBytes, cudaMemcpyDeviceToHost));
     return hostTensor;
 }
 
