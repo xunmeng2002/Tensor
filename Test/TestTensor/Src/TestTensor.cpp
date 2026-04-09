@@ -70,6 +70,8 @@ TestTensor::TestTensor(DeviceType device)
 
 void TestTensor::Test()
 {
+	printf("Start TestTensor for device: %s\n", device == DeviceType::CPU ? "CPU" : "CUDA");
+
     TestPermuteAndTranspose();
     TestContiguous();
     TestView();
@@ -83,6 +85,8 @@ void TestTensor::Test()
     TestTransposeAndClone();
     TestNarrowTransposeAndClone();
     TestExpandAndClone();
+
+    printf("End TestTensor for device: %s\n", device == DeviceType::CPU ? "CPU" : "CUDA");
 }
 void TestTensor::TestPermuteAndTranspose()
 {
