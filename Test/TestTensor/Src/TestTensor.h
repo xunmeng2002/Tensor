@@ -13,6 +13,7 @@ public:
 protected:
 	shared_ptr<Tensor<int>> PrepareTestTensor();
 	shared_ptr<Tensor<int>> PrepareTestTensor2();
+	shared_ptr<Tensor<int>> PrepareTestTensor3();
 
 	void TestPermuteAndTranspose();
 	void TestContiguous();
@@ -28,6 +29,8 @@ protected:
 	void TestTransposeAndClone();
 	void TestNarrowTransposeAndClone();
 	void TestExpandAndClone();
+
+	void TestAddSubMulDiv();
 
 private:
 	DeviceType device;

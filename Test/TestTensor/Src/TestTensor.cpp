@@ -28,6 +28,34 @@ static void PrintTensor(TensorType* tensor)
     printf("\n");
 }
 
+
+TestTensor::TestTensor(DeviceType device)
+    :device(device)
+{
+}
+
+void TestTensor::Test()
+{
+	printf("Start TestTensor for device: %s\n", device == DeviceType::CPU ? "CPU" : "CUDA");
+
+    //TestPermuteAndTranspose();
+    //TestContiguous();
+    //TestView();
+    //TestSqueezeAndUnsqueeze();
+    //TestExpand();
+    //TestRepeat();
+    //TestNarrow();
+    //TestZerosAndOnes();
+
+    //TestNarrowAndClone();
+    //TestTransposeAndClone();
+    //TestNarrowTransposeAndClone();
+    //TestExpandAndClone();
+
+	TestAddSubMulDiv();
+
+    printf("End TestTensor for device: %s\n", device == DeviceType::CPU ? "CPU" : "CUDA");
+}
 // Prepare a 2x3x4 tensor with values from 1 to 24, and strides {12, 4, 1}
 shared_ptr<Tensor<int>> TestTensor::PrepareTestTensor()
 {
@@ -62,32 +90,24 @@ shared_ptr<Tensor<int>> TestTensor::PrepareTestTensor2()
         return tensor;
     }
 }
-
-TestTensor::TestTensor(DeviceType device)
-    :device(device)
+// Prepare a 2x2x3 tensor with values from 12 to 1, and strides {6, 3, 1}
+shared_ptr<Tensor<int>> TestTensor::PrepareTestTensor3()
 {
+    vector<int> shape = { 2, 2, 3 };
+    if (device == DeviceType::CPU)
+    {
+        auto tensor = CpuTensor<int>::Arrange(shape, 12, -1);
+        PrintTensor(tensor.get());
+        return tensor;
+    }
+    else
+    {
+        auto tensor = CudaTensor<int>::Arrange(shape, 12, -1);
+        PrintTensor(tensor.get());
+        return tensor;
+    }
 }
 
-void TestTensor::Test()
-{
-	printf("Start TestTensor for device: %s\n", device == DeviceType::CPU ? "CPU" : "CUDA");
-
-    TestPermuteAndTranspose();
-    TestContiguous();
-    TestView();
-    TestSqueezeAndUnsqueeze();
-    TestExpand();
-    TestRepeat();
-    TestNarrow();
-    TestZerosAndOnes();
-
-    TestNarrowAndClone();
-    TestTransposeAndClone();
-    TestNarrowTransposeAndClone();
-    TestExpandAndClone();
-
-    printf("End TestTensor for device: %s\n", device == DeviceType::CPU ? "CPU" : "CUDA");
-}
 void TestTensor::TestPermuteAndTranspose()
 {
     printf("\n--------Start TestPermuteAndTranspose--------\n");
@@ -392,5 +412,30 @@ void TestTensor::TestExpandAndClone()
     printf("--------End TestExpandAndClone--------\n\n");
 }
 
+void TestTensor::TestAddSubMulDiv()
+{
+	auto tensor1 = PrepareTestTensor2();
+	auto tensor2 = PrepareTestTensor3();
+	auto tensor3 = tensor1->Add(*tensor2);
+	PrintTensor(tensor3.get());
+    CheckTensor(tensor3.get(), 0, { 2, 2, 3 }, { 6, 3, 1 }, true,
+		{ 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13 });
+
+	auto tensor4 = tensor1->Sub(*tensor2);
+	PrintTensor(tensor4.get());
+	CheckTensor(tensor4.get(), 0, { 2, 2, 3 }, { 6, 3, 1 }, true,
+		{ -11, -9, -7, -5, -3, -1, 1, 3, 5, 7, 9, 11 });
+
+	auto tensor5 = tensor1->Mul(*tensor2);
+	PrintTensor(tensor5.get());
+	CheckTensor(tensor5.get(), 0, { 2, 2, 3 }, { 6, 3, 1 }, true,
+		{ 12, 22, 30, 36, 40, 42, 42, 40, 36, 30, 22, 12 });
+
+	auto tensor6 = tensor1->Div(*tensor2);
+	PrintTensor(tensor6.get());
+    CheckTensor(tensor6.get(), 0, { 2, 2, 3 }, { 6, 3, 1 }, true,
+        { 1 / 12, 2 / 11, 3 / 10, 4 / 9, 5 / 8, 6 / 7, 
+		  7 / 6, 8 / 5, 9 / 4, 10 / 3, 11 / 2, 12 / 1 });
+}
 
 
