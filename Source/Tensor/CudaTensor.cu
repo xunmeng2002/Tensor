@@ -435,8 +435,8 @@ bool CudaTensor<T>::CheckEqual(const vector<T>& data) const
     CUDA_CHECK(cudaMemset(d_result, 1, sizeof(bool)));
     int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
 
-    CheckEqualKernel<T> << <gridSize, defaultBlockSize >> > (this->pdata.get(), (T*)dData.get(), (int*)dShape.get(), (int*)dStrides.get(),
-        this->shape.size(), this->offset, elements, d_result);
+    CheckEqualKernel<T> << <gridSize, defaultBlockSize >> > (this->pdata.get() + this->offset, (T*)dData.get(), (int*)dShape.get(), (int*)dStrides.get(),
+        this->shape.size(), elements, d_result);
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaStreamSynchronize(nullptr));
 

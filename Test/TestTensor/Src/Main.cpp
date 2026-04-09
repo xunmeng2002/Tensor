@@ -5,8 +5,8 @@ using namespace std;
 
 int main()
 {
-	DeviceType device = DeviceType::CPU;
-	//DeviceType device = DeviceType::CUDA;
+	//DeviceType device = DeviceType::CPU;
+	DeviceType device = DeviceType::CUDA;
 	TestTensor testTensor(device);
 	testTensor.Test();
 
