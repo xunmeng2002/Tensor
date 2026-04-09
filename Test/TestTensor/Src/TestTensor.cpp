@@ -1,5 +1,6 @@
-#include "TestCpuTensor.h"
+#include "TestTensor.h"
 #include "CpuTensor.h"
+#include "CudaTensor.h"
 #include <exception>
 #include <cassert>
 
@@ -19,7 +20,6 @@ static void CheckTensor(TensorType* tensor, size_t expectOffset, const vector<in
     assert(total == expectElements.size());
     assert(tensor->CheckEqual(expectElements));
 }
-
 template<typename TensorType>
 static void PrintTensor(TensorType* tensor)
 {
@@ -27,25 +27,48 @@ static void PrintTensor(TensorType* tensor)
     tensor->Print();
     printf("\n");
 }
+
 // Prepare a 2x3x4 tensor with values from 1 to 24, and strides {12, 4, 1}
-static shared_ptr<CpuTensor<int>> PrepareTestTensor()
+shared_ptr<Tensor<int>> TestTensor::PrepareTestTensor()
 {
     vector<int> shape = { 2, 3, 4 };
-    auto tensor = CpuTensor<int>::Arrange(shape, 1);
-    PrintTensor(tensor.get());
-    return tensor;
+    if (device == DeviceType::CPU)
+    {
+        auto tensor = CpuTensor<int>::Arrange(shape, 1);
+        PrintTensor(tensor.get());
+        return tensor;
+    }
+    else
+    {
+        auto tensor = CudaTensor<int>::Arrange(shape, 1);
+        PrintTensor(tensor.get());
+        return tensor;
+    }
 }
 // Prepare a 2x2x3 tensor with values from 1 to 12, and strides {6, 3, 1}
-static shared_ptr<CpuTensor<int>> PrepareTestTensor2()
+shared_ptr<Tensor<int>> TestTensor::PrepareTestTensor2()
 {
     vector<int> shape = { 2, 2, 3 };
-    auto tensor = CpuTensor<int>::Arrange(shape, 1);
-    PrintTensor(tensor.get());
-    return tensor;
+    if (device == DeviceType::CPU)
+    {
+        auto tensor = CpuTensor<int>::Arrange(shape, 1);
+        PrintTensor(tensor.get());
+        return tensor;
+    }
+    else
+    {
+        auto tensor = CudaTensor<int>::Arrange(shape, 1);
+        PrintTensor(tensor.get());
+        return tensor;
+    }
 }
 
+TestTensor::TestTensor(DeviceType device)
+    :device(device)
+{
+}
 
-void TestCpuTensor::Test()
+void TestTensor::Test()
 {
     TestPermuteAndTranspose();
     TestContiguous();
@@ -61,7 +84,7 @@ void TestCpuTensor::Test()
     TestNarrowTransposeAndClone();
     TestExpandAndClone();
 }
-void TestCpuTensor::TestPermuteAndTranspose()
+void TestTensor::TestPermuteAndTranspose()
 {
     printf("\n--------Start TestPermuteAndTranspose--------\n");
     auto tensor1 = PrepareTestTensor();
@@ -80,7 +103,7 @@ void TestCpuTensor::TestPermuteAndTranspose()
         { 1, 13, 2, 14, 3, 15, 4, 16, 5, 17, 6, 18, 7, 19, 8, 20, 9, 21, 10, 22, 11, 23, 12, 24 });
     printf("--------End TestPermuteAndTranspose--------\n\n");
 }
-void TestCpuTensor::TestContiguous()
+void TestTensor::TestContiguous()
 {
     printf("\n--------Start TestContiguous--------\n");
     auto tensor1 = PrepareTestTensor();
@@ -107,7 +130,7 @@ void TestCpuTensor::TestContiguous()
 
     printf("--------End TestContiguous--------\n\n");
 }
-void TestCpuTensor::TestView()
+void TestTensor::TestView()
 {
     printf("\n--------Start TestView--------\n");
     auto tensor = PrepareTestTensor();
@@ -133,7 +156,7 @@ void TestCpuTensor::TestView()
 
     printf("--------End TestView--------\n\n");
 }
-void TestCpuTensor::TestSqueezeAndUnsqueeze()
+void TestTensor::TestSqueezeAndUnsqueeze()
 {
     printf("\n--------Start TestSqueezeAndUnsqueeze--------\n");
     auto tensor1 = PrepareTestTensor();
@@ -158,7 +181,7 @@ void TestCpuTensor::TestSqueezeAndUnsqueeze()
 
 	printf("--------End TestSqueezeAndUnsqueeze--------\n\n");
 }
-void TestCpuTensor::TestExpand()
+void TestTensor::TestExpand()
 {
     printf("\n--------Start TestExpand--------\n");
     auto tensor1 = PrepareTestTensor2();
@@ -187,7 +210,7 @@ void TestCpuTensor::TestExpand()
 
     printf("--------End TestExpand--------\n\n");
 }
-void TestCpuTensor::TestRepeat()
+void TestTensor::TestRepeat()
 {
     printf("\n--------Start TestRepeat--------\n");
     auto tensor1 = PrepareTestTensor2();
@@ -201,7 +224,7 @@ void TestCpuTensor::TestRepeat()
 
     printf("--------End TestRepeat--------\n\n");
 }
-void TestCpuTensor::TestNarrow()
+void TestTensor::TestNarrow()
 {
     printf("\n--------Start TestNarrow--------\n");
     auto tensor1 = PrepareTestTensor();
@@ -230,7 +253,7 @@ void TestCpuTensor::TestNarrow()
 
 	printf("--------End TestNarrow--------\n\n");
 }
-void TestCpuTensor::TestZerosAndOnes()
+void TestTensor::TestZerosAndOnes()
 {
     printf("\n--------Start TestZerosAndOnes--------\n");
     printf("Zeros for {2, 3, 4}\n");
@@ -255,7 +278,7 @@ void TestCpuTensor::TestZerosAndOnes()
 }
 
 
-void TestCpuTensor::TestNarrowAndClone()
+void TestTensor::TestNarrowAndClone()
 {
     printf("\n--------Start TestNarrowAndClone--------\n");
     auto tensor1 = PrepareTestTensor();
@@ -288,7 +311,7 @@ void TestCpuTensor::TestNarrowAndClone()
 
     printf("\n--------End TestNarrowAndClone--------\n");
 }
-void TestCpuTensor::TestTransposeAndClone()
+void TestTensor::TestTransposeAndClone()
 {
     printf("\n--------Start TestTransposeAndClone--------\n");
     auto tensor1 = PrepareTestTensor();
@@ -308,7 +331,7 @@ void TestCpuTensor::TestTransposeAndClone()
 
     printf("\n--------End TestTransposeAndClone--------\n");
 }
-void TestCpuTensor::TestNarrowTransposeAndClone()
+void TestTensor::TestNarrowTransposeAndClone()
 {
     printf("\n--------Start TestNarrowTransposeAndClone--------\n");
     auto tensor1 = PrepareTestTensor();
@@ -342,7 +365,7 @@ void TestCpuTensor::TestNarrowTransposeAndClone()
 
     printf("\n--------End TestNarrowTransposeAndClone--------\n");
 }
-void TestCpuTensor::TestExpandAndClone()
+void TestTensor::TestExpandAndClone()
 {
     printf("\n--------Start TestExpandAndClone--------\n");
     auto tensor1 = PrepareTestTensor2();
