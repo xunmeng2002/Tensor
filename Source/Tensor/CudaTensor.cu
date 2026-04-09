@@ -399,14 +399,18 @@ shared_ptr<CudaTensor<T>> CudaTensor<T>::Zeros(const std::vector<int>& shape)
 template<typename T>
 std::shared_ptr<T> CudaTensor<T>::Allocate(size_t elements)
 {
-    auto ptr = AllocateKernel(elements * sizeof(T));
+    T* ptr = nullptr;
+    cudaError_t error = cudaMallocAsync(&ptr, elements * sizeof(T), nullptr);
+    CUDA_CHECK(error);
     return shared_ptr<T>((T*)ptr, CudaFreeDirect);
 }
 template<typename T>
 std::shared_ptr<uint8_t> CudaTensor<T>::AllocateBytes(size_t bytes)
 {
-	auto ptr = AllocateKernel(bytes);
-	return shared_ptr<uint8_t>((uint8_t*)ptr, CudaFreeDirect);
+    uint8_t* ptr = nullptr;
+    cudaError_t error = cudaMallocAsync(&ptr, bytes, nullptr);
+    CUDA_CHECK(error);
+	return shared_ptr<uint8_t>(ptr, CudaFreeDirect);
 }
 template<typename T>
 T CudaTensor<T>::At(const std::vector<int>& indices, bool checkBounds) const
@@ -475,7 +479,17 @@ template<typename T>
 bool CudaTensor<T>::HasZero() const
 {
     size_t elements = this->GetTotalElements();
-    return LaunchHasZeroKernel(this->pdata.get() + this->offset, elements, defaultBlockSize);
+    bool* d_result;
+    CUDA_CHECK(cudaMalloc(&d_result, sizeof(bool)));
+    CUDA_CHECK(cudaMemset(d_result, 0, sizeof(bool)));
+    int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
+    HasZeroKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, elements, d_result);
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaStreamSynchronize(nullptr));
+    bool result;
+    CUDA_CHECK(cudaMemcpy(&result, d_result, sizeof(bool), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaFree(d_result));
+	return result;
 }
 template<typename T>
 shared_ptr<Tensor<T>> CudaTensor<T>::ToDevice(DeviceType targetDevice) const
@@ -555,13 +569,19 @@ template<typename T>
 void CudaTensor<T>::FillValue(T value)
 {
     size_t elements = this->GetTotalElements();
-    LaunchFillKernel(this->pdata.get() + this->offset, elements, value, defaultBlockSize);
+    int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
+    FillKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, elements, value);
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaStreamSynchronize(nullptr));
 }
 template<typename T>
 void CudaTensor<T>::FillValueWithStep(T start, T step)
 {
     size_t elements = this->GetTotalElements();
-    LaunchArrangeKernel(this->pdata.get() + this->offset, elements, start, step, defaultBlockSize);
+    int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
+    ArrangeKernel<T> << <gridSize, defaultBlockSize >> > (this->pdata.get() + this->offset, elements, start, step);
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaStreamSynchronize(nullptr));
 }
 template<typename T>
 int CudaTensor<T>::GetDefaultGridSize(size_t elements) const

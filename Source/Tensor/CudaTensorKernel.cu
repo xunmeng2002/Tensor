@@ -5,13 +5,6 @@
 
 
 
-void* AllocateKernel(size_t size)
-{
-    char* ptr = nullptr;
-    cudaError_t error = cudaMallocAsync(&ptr, size, nullptr);
-    CUDA_CHECK(error);
-    return ptr;
-}
 void CudaFreeDirect(void* ptr)
 {
     cudaFreeAsync(ptr, nullptr);

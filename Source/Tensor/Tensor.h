@@ -13,8 +13,8 @@ using namespace std;
 
 enum class DeviceType : int { CPU, CUDA };
 // 运算类型枚举
-enum class ElementwiseOp { ADD, SUB, MUL, DIV };
-enum class ScalarOp { ADD, SUB, MUL, DIV };
+enum class ElementwiseOp { ADD = 0, SUB, MUL, DIV };
+enum class ScalarOp { ADD = 0, SUB, MUL, DIV };
 
 template<typename T>
 class Tensor

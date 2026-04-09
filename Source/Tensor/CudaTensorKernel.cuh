@@ -15,9 +15,6 @@ using namespace std;
     } while(0)
 
 
-
-
-void* AllocateKernel(size_t size);
 void CudaFreeDirect(void* ptr);
 
 // 元素级运算核函数
@@ -232,43 +229,4 @@ void LaunchScalarKernelInplace(T* a, size_t elements, T scalar, int blockSize, S
     CUDA_CHECK(cudaDeviceSynchronize());
 }
 
-template<typename T>
-bool LaunchHasZeroKernel(const T* data, size_t elements, int blockSize)
-{
-    bool* d_result;
-    CUDA_CHECK(cudaMalloc(&d_result, sizeof(bool)));
-    CUDA_CHECK(cudaMemset(d_result, 0, sizeof(bool)));
-
-    int gridSize = (elements + blockSize - 1) / blockSize;
-
-    HasZeroKernel<T><<<gridSize, blockSize >>>(data, elements, d_result);
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaStreamSynchronize(nullptr));
-
-    bool result;
-    CUDA_CHECK(cudaMemcpy(&result, d_result, sizeof(bool), cudaMemcpyDeviceToHost));
-    CUDA_CHECK(cudaFree(d_result));
-
-    return result;
-}
-
-template<typename T>
-void LaunchFillKernel(T* data, size_t elements, T value, int blockSize)
-{
-    int gridSize = (elements + blockSize - 1) / blockSize;
-
-    FillKernel<T> << <gridSize, blockSize >> > (data, elements, value);
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaDeviceSynchronize());
-}
-
-template<typename T>
-void LaunchArrangeKernel(T* data, size_t elements, T start, T step, int blockSize)
-{
-    int gridSize = (elements + blockSize - 1) / blockSize;
-
-    ArrangeKernel<T> << <gridSize, blockSize >> > (data, elements, start, step);
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaDeviceSynchronize());
-}
 
