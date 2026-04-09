@@ -339,6 +339,36 @@ shared_ptr<CudaTensor<T>> CudaTensor<T>::CreateCudaTensor(const std::vector<int>
     return make_shared<CudaTensor<T>>(shape);
 }
 template<typename T>
+shared_ptr<CudaTensor<T>> CudaTensor<T>::CreateFromCpuTensor(const Tensor<T>& cpuTensor)
+{
+    if (cpuTensor.GetDevice() != DeviceType::CPU)
+    {
+        throw std::runtime_error("Input tensor must be on CPU to create a CudaTensor.");
+	}
+    auto elements = cpuTensor.GetTotalElements();
+    size_t totalBytes = elements * sizeof(T);
+    if (cpuTensor.IsContiguous())
+    {
+        auto cudaTensor = CreateCudaTensor(cpuTensor.GetShape());
+        CUDA_CHECK(cudaMemcpy(cudaTensor->GetData().get(), cpuTensor.GetData().get(), totalBytes, cudaMemcpyHostToDevice));
+        return cudaTensor;
+    }
+    else if (cpuTensor.HasValidDenseLayout())
+    {
+        auto deviceData = CpuTensor<T>::Allocate(elements);
+        auto cudaTensor = make_shared<CudaTensor<T>>(deviceData, cpuTensor.GetOffset(), cpuTensor.GetShape(), cpuTensor.GetStrides());
+        CUDA_CHECK(cudaMemcpy(deviceData.get(), cpuTensor.GetData().get(), totalBytes, cudaMemcpyHostToDevice));
+        return cudaTensor;
+	}
+    else
+    {
+		auto contiguousCpuTensor = cpuTensor.Contiguous();
+        auto cudaTensor = CreateCudaTensor(cpuTensor.GetShape());
+        CUDA_CHECK(cudaMemcpy(cudaTensor->GetData().get(), contiguousCpuTensor->GetData().get(), totalBytes, cudaMemcpyHostToDevice));
+        return cudaTensor;
+	}
+}
+template<typename T>
 shared_ptr<CudaTensor<T>> CudaTensor<T>::Arrange(const std::vector<int>& shape, T start, T step)
 {
     auto tensor = CreateCudaTensor(shape);
@@ -446,6 +476,15 @@ bool CudaTensor<T>::HasZero() const
 {
     size_t elements = this->GetTotalElements();
     return LaunchHasZeroKernel(this->pdata.get() + this->offset, elements, defaultBlockSize);
+}
+template<typename T>
+shared_ptr<Tensor<T>> CudaTensor<T>::ToDevice(DeviceType targetDevice) const
+{
+    if (targetDevice == DeviceType::CUDA)
+    {
+        return this->Clone();
+    }
+    return this->ToHost();
 }
 template<typename T>
 shared_ptr<Tensor<T>> CudaTensor<T>::ToHost() const

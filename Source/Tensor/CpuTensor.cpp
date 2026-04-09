@@ -1,4 +1,5 @@
 #include "CpuTensor.h"
+#include "CudaTensor.h"
 
 
 template<typename T>
@@ -586,9 +587,13 @@ bool CpuTensor<T>::HasZero() const
     return false;
 }
 template<typename T>
-shared_ptr<Tensor<T>> CpuTensor<T>::ToHost() const
+shared_ptr<Tensor<T>> CpuTensor<T>::ToDevice(DeviceType targetDevice) const
 {
-	throw std::runtime_error("Tensor is already on CPU");
+    if (targetDevice == DeviceType::CPU)
+    {
+        return this->Clone();
+    }
+	return CudaTensor<T>::CreateFromCpuTensor(*this);
 }
 
 template<typename T>

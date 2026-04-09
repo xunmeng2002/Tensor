@@ -368,6 +368,36 @@ size_t Tensor<T>::GetTotalElements() const
     return total;
 }
 template<typename T>
+bool Tensor<T>::HasValidDenseLayout() const
+{
+    if (shape.empty() || !pdata)
+    {
+        return true;
+    }
+    for (int stride : strides)
+    {
+        if (stride <= 0)
+        {
+            return false;
+        }
+    }
+    std::vector<int> dims(shape.size());
+    std::iota(dims.begin(), dims.end(), 0);
+    std::sort(dims.begin(), dims.end(), [&](int i, int j) {
+        return strides[i] < strides[j];
+        });
+    size_t expectStride = 1;
+    for (int dim : dims)
+    {
+        if (strides[dim] != expectStride)
+        {
+            return false;
+        }
+        expectStride = shape[dim] * strides[dim];
+    }
+    return true;
+}
+template<typename T>
 bool Tensor<T>::IsContiguous() const
 {
     if (strides.empty() || shape.empty())
@@ -484,7 +514,7 @@ void Tensor<T>::Print(bool pretty) const
     }
     if (this->device != DeviceType::CPU)
     {
-        this->ToHost()->Print(pretty);
+        this->ToDevice(DeviceType::CPU)->Print(pretty);
         return;
 	}
     else
@@ -817,36 +847,6 @@ shared_ptr<Tensor<T>> Tensor<T>::CloneDenseView() const
     result->shape = shape;
     result->strides = strides;
     return result;
-}
-template<typename T>
-bool Tensor<T>::HasValidDenseLayout() const
-{
-    if (shape.empty() || !pdata)
-    {
-        return true;
-    }
-    for (int stride : strides)
-    {
-        if (stride <= 0)
-        {
-            return false;
-        }
-    }
-    std::vector<int> dims(shape.size());
-    std::iota(dims.begin(), dims.end(), 0);
-    std::sort(dims.begin(), dims.end(), [&](int i, int j) {
-        return strides[i] < strides[j];
-        });
-    size_t expectStride = 1;
-    for (int dim : dims)
-    {
-        if (strides[dim] != expectStride)
-        {
-            return false;
-        }
-        expectStride = shape[dim] * strides[dim];
-    }
-    return true;
 }
 template<typename T>
 std::vector<int> Tensor<T>::LinearToIndices(size_t linearIndex) const

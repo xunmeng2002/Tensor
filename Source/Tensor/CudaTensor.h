@@ -38,6 +38,7 @@ public:
     virtual shared_ptr<Tensor<T>> Create(const std::vector<int>& shape) const override;
     static shared_ptr<CudaTensor<T>> CreateCudaTensor();
     static shared_ptr<CudaTensor<T>> CreateCudaTensor(const std::vector<int>& shape);
+    static shared_ptr<CudaTensor<T>> CreateFromCpuTensor(const Tensor<T>& cpuTensor);
     static shared_ptr<CudaTensor<T>> Arrange(const std::vector<int>& shape, T start, T step = 1);
     static shared_ptr<CudaTensor<T>> Full(const std::vector<int>& shape, T value);
     static shared_ptr<CudaTensor<T>> Ones(const std::vector<int>& shape);
@@ -52,7 +53,8 @@ public:
     virtual shared_ptr<Tensor<T>> Contiguous() const override;
     virtual void Contiguous_() override;
     virtual bool HasZero() const override;
-	virtual shared_ptr<Tensor<T>> ToHost() const override;
+    virtual shared_ptr<Tensor<T>> ToDevice(DeviceType targetDevice) const override;
+	shared_ptr<Tensor<T>> ToHost() const;
 protected:
     virtual void CopyDataContiguous(T* dest) const override;
     virtual void CopyDataNoncontiguous(T* dest) const override;

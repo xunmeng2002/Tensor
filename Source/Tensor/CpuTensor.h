@@ -51,7 +51,7 @@ public:
     virtual shared_ptr<Tensor<T>> Contiguous() const override;
     virtual void Contiguous_() override;
     virtual bool HasZero() const override;
-    virtual shared_ptr<Tensor<T>> ToHost() const override;
+    virtual shared_ptr<Tensor<T>> ToDevice(DeviceType targetDevice) const override;
 
 
 protected:
