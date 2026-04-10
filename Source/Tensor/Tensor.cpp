@@ -765,11 +765,18 @@ uint64_t Tensor<T>::CalculateOffset(const std::vector<int>& indices) const
     uint64_t currOffset = this->offset;
     for (size_t i = 0; i < indices.size(); ++i)
     {
-        if (indices[i] < 0 || indices[i] >= shape[i])
+        if (indices[i] + shape[i] < 0 || indices[i] >= shape[i])
         {
             throw std::out_of_range("Index out of bounds");
         }
-        currOffset += indices[i] * strides[i];
+        if (indices[i] < 0)
+        {
+            currOffset += (indices[i] + shape[i]) * strides[i];
+		}
+        else
+        {
+            currOffset += indices[i] * strides[i];
+        }
     }
     return currOffset;
 }
@@ -783,11 +790,18 @@ uint64_t Tensor<T>::CalculateOffset(const std::vector<int>& indices, uint64_t of
     uint64_t currOffset = offset;
     for (size_t i = 0; i < indices.size(); ++i)
     {
-        if (indices[i] < 0 || indices[i] >= shape[i])
+        if (indices[i] + shape[i] < 0 || indices[i] >= shape[i])
         {
             throw std::out_of_range("Index out of bounds");
         }
-        currOffset += indices[i] * strides[i];
+        if (indices[i] < 0)
+        {
+            currOffset += (indices[i] + shape[i]) * strides[i];
+        }
+        else
+        {
+            currOffset += indices[i] * strides[i];
+        }
     }
     return currOffset;
 }
