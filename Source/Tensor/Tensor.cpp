@@ -74,50 +74,6 @@ Tensor<T>& Tensor<T>::operator=(Tensor&& other) noexcept
     return *this;
 }
 template<typename T>
-T& Tensor<T>::operator[](const std::vector<int>& indices)
-{
-    return *(pdata.get() + CalculateOffset(indices));
-}
-template<typename T>
-const T& Tensor<T>::operator[](const std::vector<int>& indices) const
-{
-    return *(pdata.get() + CalculateOffset(indices));
-}
-template<typename T>
-T& Tensor<T>::operator[](int64_t index)
-{
-    if (shape.size() != 1)
-    {
-        throw std::invalid_argument("Scalar indexing only supported for 1D tensors");
-    }
-    if (index < 0)
-    {
-        index += shape[0];
-    }
-    if (index < 0 || index >= shape[0])
-    {
-        throw std::out_of_range("Index out of bounds");
-    }
-    return *(pdata.get() + offset + index * strides[0]);
-}
-template<typename T>
-const T& Tensor<T>::operator[](int64_t index) const
-{
-    if (shape.size() != 1)
-    {
-        throw std::invalid_argument("Scalar indexing only supported for 1D tensors");
-    }
-    if (index < 0)
-    {
-        index += shape[0];
-    }
-    if (index < 0 || index >= shape[0])
-    {
-        throw std::out_of_range("Index out of bounds");
-    }
-    return *(pdata.get() + offset + index * strides[0]);
-}
-template<typename T>
 template<typename... Indices>
 T& Tensor<T>::operator()(Indices... indices)
 {

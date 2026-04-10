@@ -34,6 +34,47 @@ CpuTensor<T>::CpuTensor(shared_ptr<T> data, uint64_t offset, const vector<int>& 
 }
 
 template<typename T>
+T CpuTensor<T>::operator[](int64_t index) const
+{
+    if (this->shape.size() != 1)
+    {
+        throw std::invalid_argument("Scalar indexing only supported for 1D tensors");
+    }
+    if (index < 0)
+    {
+        index += this->shape[0];
+    }
+    size_t currOffset = this->offset + index * this->strides[0];
+    return *(this->pdata.get() + currOffset);
+}
+template<typename T>
+T CpuTensor<T>::operator[](const std::vector<int>& indices) const
+{
+    size_t currOffset = this->CalculateOffsetUnChecked(indices);
+    return *(this->pdata.get() + currOffset);
+}
+template<typename T>
+T& CpuTensor<T>::operator[](int64_t index)
+{
+    if (this->shape.size() != 1)
+    {
+        throw std::invalid_argument("Scalar indexing only supported for 1D tensors");
+    }
+    if (index < 0)
+    {
+        index += this->shape[0];
+    }
+    size_t currOffset = this->offset + index * this->strides[0];
+    return *(this->pdata.get() + currOffset);
+}
+template<typename T>
+T& CpuTensor<T>::operator[](const std::vector<int>& indices)
+{
+    size_t currOffset = this->CalculateOffsetUnChecked(indices);
+    return *(this->pdata.get() + currOffset);
+}
+
+template<typename T>
 shared_ptr<Tensor<T>> CpuTensor<T>::Add(const Tensor<T>& other) const
 {
     if (!this->CheckDevice(other) || !this->CheckShape(other))
@@ -496,16 +537,22 @@ std::shared_ptr<T> CpuTensor<T>::Allocate(size_t elements)
     return shared_ptr<T>(new T[elements * sizeof(T)], [](T* ptr) {delete[] ptr; });
 }
 template<typename T>
-T CpuTensor<T>::At(const std::vector<int>& indices, bool checkBounds) const
+T CpuTensor<T>::At(const std::vector<int>& indices) const
 {
-    size_t currOffset = checkBounds ? this->CalculateOffset(indices) : this->CalculateOffsetUnChecked(indices);
+    size_t currOffset = this->CalculateOffset(indices);
     return *(this->pdata.get() + currOffset);
 }
 template<typename T>
-T& CpuTensor<T>::At(const std::vector<int>& indices, bool checkBounds)
+T& CpuTensor<T>::At(const std::vector<int>& indices)
 {
-    size_t currOffset = checkBounds ? this->CalculateOffset(indices) : this->CalculateOffsetUnChecked(indices);
+    size_t currOffset = this->CalculateOffset(indices);
     return *(this->pdata.get() + currOffset);
+}
+template<typename T>
+void CpuTensor<T>::SetAt(const std::vector<int>& indices, const T& value)
+{
+    size_t currOffset = this->CalculateOffset(indices);
+    *(this->pdata.get() + currOffset) = value;
 }
 template<typename T>
 bool CpuTensor<T>::CheckEqual(const vector<T>& data) const
@@ -526,7 +573,7 @@ bool CpuTensor<T>::CheckEqual(const vector<T>& data) const
         vector<int> indices(dims);
         for (size_t i = 0; i < elements; ++i)
         {
-            T value = this->At(indices, false);
+            T value = (*this)[indices];
             if (value != data[i])
                 return false;
             this->UpdateIndices(indices);

@@ -33,10 +33,8 @@ public:
     Tensor(Tensor&& other) noexcept;
     Tensor& operator=(const Tensor& other) noexcept;
     Tensor& operator=(Tensor&& other) noexcept;
-    T& operator[](const std::vector<int>& indices);
-    const T& operator[](const std::vector<int>& indices) const;
-    T& operator[](int64_t index);
-    const T& operator[](int64_t index) const;
+    virtual T operator[](int64_t index) const = 0;
+    virtual T operator[](const std::vector<int>& indices) const = 0;
     template<typename... Indices>
     T& operator()(Indices... indices);
     
@@ -73,10 +71,9 @@ public:
     virtual void Sub_(T value) = 0;
     virtual void Mul_(T value) = 0;
     virtual void Div_(T value) = 0;
+    virtual T At(const std::vector<int>& indices) const = 0;
+    virtual void SetAt(const std::vector<int>& indices, const T& value) = 0;
 
-
-    virtual T At(const std::vector<int>& indices, bool checkBounds = true) const = 0;
-    virtual T& At(const std::vector<int>& indices, bool checkBounds = true) = 0;
     bool CheckDims(const vector<int>& dims);
     virtual bool CheckEqual(const vector<T>& data) const = 0;
     shared_ptr<Tensor> Clone() const;

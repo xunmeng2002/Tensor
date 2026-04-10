@@ -2,6 +2,7 @@
 #include "Tensor.h"
 #include <functional>
 #include <memory>
+#include <vector>
 
 
 template<typename T>
@@ -16,6 +17,10 @@ public:
     CpuTensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape) noexcept;
     CpuTensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape, const vector<int>& strides) noexcept;
     virtual ~CpuTensor() = default;
+    virtual T operator[](int64_t index) const override;
+    virtual T operator[](const std::vector<int>& indices) const override;
+    virtual T& operator[](int64_t index);
+    virtual T& operator[](const std::vector<int>& indices);
 
     virtual shared_ptr<Tensor<T>> Add(const Tensor<T>& other) const override;
     virtual shared_ptr<Tensor<T>> Sub(const Tensor<T>& other) const override;
@@ -45,8 +50,9 @@ public:
     
 
     static std::shared_ptr<T> Allocate(size_t elements);
-    virtual T At(const std::vector<int>& indices, bool checkBounds = true) const override;
-    virtual T& At(const std::vector<int>& indices, bool checkBounds = true) override;
+    virtual T At(const std::vector<int>& indices) const override;
+    virtual T& At(const std::vector<int>& indices);
+    virtual void SetAt(const std::vector<int>& indices, const T& value) override;
     virtual bool CheckEqual(const vector<T>& data) const override;
     virtual shared_ptr<Tensor<T>> Contiguous() const override;
     virtual void Contiguous_() override;

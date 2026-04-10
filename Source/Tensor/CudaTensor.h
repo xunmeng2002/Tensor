@@ -16,6 +16,9 @@ public:
     CudaTensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape) noexcept;
     CudaTensor(shared_ptr<T> data, uint64_t offset, const vector<int>& shape, const vector<int>& strides) noexcept;
     virtual ~CudaTensor() = default;
+    virtual T operator[](int64_t index) const override;
+    virtual T operator[](const std::vector<int>& indices) const override;
+    
 
     virtual shared_ptr<Tensor<T>> Add(const Tensor<T>& other) const override;
     virtual shared_ptr<Tensor<T>> Sub(const Tensor<T>& other) const override;
@@ -47,8 +50,8 @@ public:
 
     static std::shared_ptr<T> Allocate(size_t elements);
     static  std::shared_ptr<uint8_t> AllocateBytes(size_t bytes);
-    virtual T At(const std::vector<int>& indices, bool checkBounds = true) const override;
-    virtual T& At(const std::vector<int>& indices, bool checkBounds = true) override;
+    virtual T At(const std::vector<int>& indices) const override;
+    virtual void SetAt(const std::vector<int>& indices, const T& value) override;
     virtual bool CheckEqual(const vector<T>& data) const override;
     virtual shared_ptr<Tensor<T>> Contiguous() const override;
     virtual void Contiguous_() override;
@@ -67,8 +70,13 @@ private:
     void FillValueWithStep(T start, T step);
     int GetDefaultGridSize(size_t elements) const;
 
+    static void LaunchElementwiseKernel(const T* a, const T* b, T* c, size_t elements, ElementwiseOp op);
+    static void LaunchElementwiseKernelInplace(T* a, const T* b, size_t elements, ElementwiseOp op);
+    static void LaunchScalarKernel(const T* a, T* c, size_t elements, T scalar, ScalarOp op);
+    static void LaunchScalarKernelInplace(T* a, size_t elements, T scalar, ScalarOp op);
+
 protected:
-    int defaultBlockSize = 256;
+    static int defaultBlockSize;
 };
 
 

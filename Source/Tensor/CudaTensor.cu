@@ -4,6 +4,25 @@
 #include "CpuTensor.h"
 
 
+#define CUDA_CHECK(error) CudaCheck(error, __FILE__, __LINE__);
+
+static void CudaCheck(cudaError_t error, const char* file, int line)
+{
+    if (error != cudaSuccess)
+    {
+        printf("CUDA Error: %s at %s:%d\n", cudaGetErrorString(error), file, line);
+        throw std::runtime_error("CUDA error occurred");
+    }
+}
+
+void CudaFreeDirect(void* ptr)
+{
+    cudaFreeAsync(ptr, nullptr);
+}
+
+template<typename T>
+int CudaTensor<T>::defaultBlockSize = 256;
+
 template<typename T>
 CudaTensor<T>::CudaTensor() noexcept
     :Tensor<T>(DeviceType::CUDA)
@@ -34,7 +53,33 @@ CudaTensor<T>::CudaTensor(shared_ptr<T> data, uint64_t offset, const vector<int>
     :Tensor<T>(data, offset, shape, strides, DeviceType::CUDA)
 {
 }
+template<typename T>
+T CudaTensor<T>::operator[](int64_t index) const
+{
+    if (this->shape.size() != 1)
+    {
+        throw std::invalid_argument("Scalar indexing only supported for 1D tensors");
+    }
+    if (index < 0)
+    {
+        index += this->shape[0];
+    }
+    auto currOffset = this->offset + index * this->strides[0];
+    auto destData = this->pdata.get() + currOffset;
+    T hostValue = 0;
+    CUDA_CHECK(cudaMemcpy(&hostValue, destData, sizeof(T), cudaMemcpyDeviceToHost));
+    return hostValue;
+}
 
+template<typename T>
+T CudaTensor<T>::operator[](const std::vector<int>& indices) const
+{
+    size_t currOffset = this->CalculateOffsetUnChecked(indices);
+    auto destData = this->pdata.get() + currOffset;
+    T hostValue = 0;
+    CUDA_CHECK(cudaMemcpy(&hostValue, destData, sizeof(T), cudaMemcpyDeviceToHost));
+    return hostValue;
+}
 
 template<typename T>
 shared_ptr<Tensor<T>> CudaTensor<T>::Add(const Tensor<T>& other) const
@@ -52,7 +97,6 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Add(const Tensor<T>& other) const
         other.GetData().get() + other.GetOffset(),
         result->GetData().get(),
         elements,
-        defaultBlockSize,
         ElementwiseOp::ADD
     );
     return result;
@@ -73,7 +117,6 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Sub(const Tensor<T>& other) const
 		other.GetData().get() + other.GetOffset(),
         result->GetData().get(),
         elements,
-        defaultBlockSize,
         ElementwiseOp::SUB
     );
 
@@ -93,7 +136,6 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Mul(const Tensor<T>& other) const
         other.GetData().get() + other.GetOffset(),
         result->GetData().get(),
         elements,
-        defaultBlockSize,
         ElementwiseOp::MUL
     );
 
@@ -120,7 +162,6 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Div(const Tensor<T>& other) const
         other.GetData().get() + other.GetOffset(),
         result->GetData().get(),
         elements,
-        defaultBlockSize,
         ElementwiseOp::DIV
     );
 
@@ -137,7 +178,6 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Add(T value) const
         result->GetData().get(),
         elements,
         value,
-        defaultBlockSize,
         ScalarOp::ADD
     );
 
@@ -154,7 +194,6 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Sub(T value) const
         result->GetData().get(),
         elements,
         value,
-        defaultBlockSize,
         ScalarOp::SUB
     );
 
@@ -171,7 +210,6 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Mul(T value) const
         result->GetData().get(),
         elements,
         value,
-        defaultBlockSize,
         ScalarOp::MUL
     );
 
@@ -193,7 +231,6 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Div(T value) const
         result->GetData().get(),
         elements,
         value,
-        defaultBlockSize,
         ScalarOp::DIV
     );
 
@@ -210,7 +247,6 @@ void CudaTensor<T>::Add_(const Tensor<T>& other)
         this->pdata.get() + this->offset,
         other.GetData().get() + other.GetOffset(),
         elements,
-        defaultBlockSize,
         ElementwiseOp::ADD
     );
 }
@@ -225,7 +261,6 @@ void CudaTensor<T>::Sub_(const Tensor<T>& other)
         this->pdata.get() + this->offset,
         other.GetData().get() + other.GetOffset(),
         elements,
-        defaultBlockSize,
         ElementwiseOp::SUB
     );
 }
@@ -240,7 +275,6 @@ void CudaTensor<T>::Mul_(const Tensor<T>& other)
         this->pdata.get() + this->offset,
         other.GetData().get() + other.GetOffset(),
         elements,
-        defaultBlockSize,
         ElementwiseOp::MUL
     );
 }
@@ -260,7 +294,6 @@ void CudaTensor<T>::Div_(const Tensor<T>& other)
         this->pdata.get() + this->offset,
         other.GetData().get() + other.GetOffset(),
         elements,
-        defaultBlockSize,
         ElementwiseOp::DIV
     );
 }
@@ -272,7 +305,6 @@ void CudaTensor<T>::Add_(T value)
         this->pdata.get() + this->offset,
         elements,
         value,
-        defaultBlockSize,
         ScalarOp::ADD
     );
 }
@@ -284,7 +316,6 @@ void CudaTensor<T>::Sub_(T value)
         this->pdata.get() + this->offset,
         elements,
         value,
-        defaultBlockSize,
         ScalarOp::SUB
     );
 }
@@ -296,7 +327,6 @@ void CudaTensor<T>::Mul_(T value)
         this->pdata.get() + this->offset,
         elements,
         value,
-        defaultBlockSize,
         ScalarOp::MUL
     );
 }
@@ -313,7 +343,6 @@ void CudaTensor<T>::Div_(T value)
         this->pdata.get() + this->offset,
         elements,
         value,
-        defaultBlockSize,
         ScalarOp::DIV
     );
 }
@@ -413,18 +442,20 @@ std::shared_ptr<uint8_t> CudaTensor<T>::AllocateBytes(size_t bytes)
 	return shared_ptr<uint8_t>(ptr, CudaFreeDirect);
 }
 template<typename T>
-T CudaTensor<T>::At(const std::vector<int>& indices, bool checkBounds) const
+T CudaTensor<T>::At(const std::vector<int>& indices) const
 {
-    size_t currOffset = checkBounds ? this->CalculateOffset(indices) : this->CalculateOffsetUnChecked(indices);
+    size_t currOffset = this->CalculateOffset(indices);
 	auto destData = this->pdata.get() + currOffset;
     T hostValue = 0;
     CUDA_CHECK(cudaMemcpy(&hostValue, destData, sizeof(T), cudaMemcpyDeviceToHost));
 	return hostValue;
 }
 template<typename T>
-T& CudaTensor<T>::At(const std::vector<int>& indices, bool checkBounds)
+void CudaTensor<T>::SetAt(const std::vector<int>& indices, const T& value)
 {
-	throw std::runtime_error("Direct element access is not supported for CudaTensor. Use ToHost() to access data on host.");
+    size_t currOffset = this->CalculateOffset(indices);
+    auto destData = this->pdata.get() + currOffset;
+    CUDA_CHECK(cudaMemcpy(destData, &value, sizeof(T), cudaMemcpyHostToDevice));
 }
 template<typename T>
 bool CudaTensor<T>::CheckEqual(const vector<T>& data) const
@@ -587,6 +618,42 @@ template<typename T>
 int CudaTensor<T>::GetDefaultGridSize(size_t elements) const
 {
     return (elements + defaultBlockSize - 1) / defaultBlockSize;
+}
+
+template<typename T>
+void CudaTensor<T>::LaunchElementwiseKernel(const T* a, const T* b, T* c, size_t elements, ElementwiseOp op)
+{
+    int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
+    ElementwiseKernel<T><<<gridSize, defaultBlockSize>>>(a, b, c, elements, static_cast<int>(op));
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
+}
+
+template<typename T>
+void CudaTensor<T>::LaunchElementwiseKernelInplace(T* a, const T* b, size_t elements, ElementwiseOp op)
+{
+    int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
+    ElementwiseInplaceKernel<T> << <gridSize, defaultBlockSize >> > (a, b, elements, static_cast<int>(op));
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
+}
+
+template<typename T>
+void CudaTensor<T>::LaunchScalarKernel(const T* a, T* c, size_t elements, T scalar, ScalarOp op)
+{
+    int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
+    ScalarKernel<T> << <gridSize, defaultBlockSize >> > (a, c, elements, scalar, static_cast<int>(op));
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
+}
+
+template<typename T>
+void CudaTensor<T>::LaunchScalarKernelInplace(T* a, size_t elements, T scalar, ScalarOp op)
+{
+    int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
+    ScalarInplaceKernel<T><<<gridSize, defaultBlockSize>>>(a, elements, scalar, static_cast<int>(op));
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
 }
 
 

@@ -5,17 +5,6 @@
 
 using namespace std;
 
-#define CUDA_CHECK(error) \
-    do { \
-        cudaError_t err = error; \
-        if (err != cudaSuccess) { \
-            printf("CUDA Error: %s at %s:%d\n", cudaGetErrorString(err), __FILE__, __LINE__); \
-            throw std::runtime_error("CUDA error occurred"); \
-        } \
-    } while(0)
-
-
-void CudaFreeDirect(void* ptr);
 
 // 元素级运算核函数
 template<typename T>
@@ -184,49 +173,6 @@ __global__ void RepeatKernel(const T* srcData, T* destData, const int* srcShape,
         srcIndex += srcCoord * srcStrides[d];
     }
     destData[index] = srcData[srcIndex];
-}
-
-
-
-// 核函数启动接口
-template<typename T>
-void LaunchElementwiseKernel(const T* a, const T* b, T* c, size_t elements, int blockSize, ElementwiseOp op)
-{
-    int gridSize = (elements + blockSize - 1) / blockSize;
-
-    ElementwiseKernel<T><<<gridSize, blockSize>>>(a, b, c, elements, static_cast<int>(op));
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaDeviceSynchronize());
-}
-
-template<typename T>
-void LaunchElementwiseKernelInplace(T* a, const T* b, size_t elements, int blockSize, ElementwiseOp op)
-{
-    int gridSize = (elements + blockSize - 1) / blockSize;
-
-    ElementwiseInplaceKernel<T> << <gridSize, blockSize >> > (a, b, elements, static_cast<int>(op));
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaDeviceSynchronize());
-}
-
-template<typename T>
-void LaunchScalarKernel(const T* a, T* c, size_t elements, T scalar, int blockSize, ScalarOp op)
-{
-    int gridSize = (elements + blockSize - 1) / blockSize;
-
-    ScalarKernel<T> << <gridSize, blockSize >> > (a, c, elements, scalar, static_cast<int>(op));
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaDeviceSynchronize());
-}
-
-template<typename T>
-void LaunchScalarKernelInplace(T* a, size_t elements, T scalar, int blockSize, ScalarOp op)
-{
-    int gridSize = (elements + blockSize - 1) / blockSize;
-
-    ScalarInplaceKernel<T> << <gridSize, blockSize >> > (a, elements, scalar, static_cast<int>(op));
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaDeviceSynchronize());
 }
 
 
