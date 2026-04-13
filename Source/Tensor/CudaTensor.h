@@ -70,10 +70,10 @@ private:
     void FillValueWithStep(T start, T step);
     int GetDefaultGridSize(size_t elements) const;
 
-    static void LaunchElementwiseKernel(const T* a, const T* b, T* c, size_t elements, ElementwiseOp op);
-    static void LaunchElementwiseKernelInplace(T* a, const T* b, size_t elements, ElementwiseOp op);
-    static void LaunchScalarKernel(const T* a, T* c, size_t elements, T scalar, ScalarOp op);
-    static void LaunchScalarKernelInplace(T* a, size_t elements, T scalar, ScalarOp op);
+    void LaunchElementwiseKernel(const T* right, T* result, ElementwiseOp op) const;
+    void LaunchElementwiseKernelInplace(const T* right, ElementwiseOp op);
+    void LaunchScalarKernel(T* result, T scalar, ScalarOp op) const;
+    void LaunchScalarKernelInplace(T scalar, ScalarOp op);
 
 protected:
     static int defaultBlockSize;

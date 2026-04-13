@@ -71,6 +71,11 @@ private:
     void FillValue(T value);
     void FillValueWithStep(T start, T step);
 
+
+    shared_ptr<Tensor<T>> ExecuteElementWise(const Tensor<T>& other, const function<T(T, T)>& op) const;
+    void ExecuteElementWiseInplace(const Tensor<T>& other, const function<T(T&, T)>& op);
+    shared_ptr<Tensor<T>> ExecuteScalar(const T& value, const function<T(T, T)>& op) const;
+    void ExecuteScalarInplace(const T& value, const function<T(T&, T)>& op);
 };
 
 extern template class CpuTensor<float>;

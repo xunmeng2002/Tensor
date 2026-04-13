@@ -88,17 +88,8 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Add(const Tensor<T>& other) const
     {
         return nullptr;
     }
-
     auto result = Create(this->shape);
-    size_t elements = this->GetTotalElements();
-
-    LaunchElementwiseKernel(
-        this->pdata.get() + this->offset,
-        other.GetData().get() + other.GetOffset(),
-        result->GetData().get(),
-        elements,
-        ElementwiseOp::ADD
-    );
+    LaunchElementwiseKernel(other.GetData().get() + other.GetOffset(), result->GetData().get(), ElementwiseOp::ADD);
     return result;
 }
 template<typename T>
@@ -108,18 +99,8 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Sub(const Tensor<T>& other) const
     {
         return nullptr;
     }
-
     auto result = Create(this->shape);
-    size_t elements = this->GetTotalElements();
-
-    LaunchElementwiseKernel(
-        this->pdata.get() + this->offset,
-		other.GetData().get() + other.GetOffset(),
-        result->GetData().get(),
-        elements,
-        ElementwiseOp::SUB
-    );
-
+    LaunchElementwiseKernel(other.GetData().get() + other.GetOffset(), result->GetData().get(), ElementwiseOp::SUB);
     return result;
 }
 template<typename T>
@@ -130,15 +111,7 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Mul(const Tensor<T>& other) const
         return nullptr;
     }
     auto result = Create(this->shape);
-    size_t elements = this->GetTotalElements();
-    LaunchElementwiseKernel(
-        this->pdata.get() + this->offset,
-        other.GetData().get() + other.GetOffset(),
-        result->GetData().get(),
-        elements,
-        ElementwiseOp::MUL
-    );
-
+    LaunchElementwiseKernel(other.GetData().get() + other.GetOffset(), result->GetData().get(), ElementwiseOp::MUL);
     return result;
 }
 template<typename T>
@@ -153,66 +126,29 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Div(const Tensor<T>& other) const
     {
         throw std::runtime_error("Division by zero in tensor element-wise division");
     }
-
     auto result = Create(this->shape);
-    size_t elements = this->GetTotalElements();
-
-    LaunchElementwiseKernel(
-        this->pdata.get() + this->offset,
-        other.GetData().get() + other.GetOffset(),
-        result->GetData().get(),
-        elements,
-        ElementwiseOp::DIV
-    );
-
+    LaunchElementwiseKernel(other.GetData().get() + other.GetOffset(), result->GetData().get(), ElementwiseOp::DIV);
     return result;
 }
 template<typename T>
 shared_ptr<Tensor<T>> CudaTensor<T>::Add(T value) const
 {
     auto result = Create(this->shape);
-    size_t elements = this->GetTotalElements();
-
-    LaunchScalarKernel(
-        this->pdata.get() + this->offset,
-        result->GetData().get(),
-        elements,
-        value,
-        ScalarOp::ADD
-    );
-
+    LaunchScalarKernel(result->GetData().get(), value, ScalarOp::ADD);
     return result;
 }
 template<typename T>
 shared_ptr<Tensor<T>> CudaTensor<T>::Sub(T value) const
 {
     auto result = Create(this->shape);
-    size_t elements = this->GetTotalElements();
-
-    LaunchScalarKernel(
-        this->pdata.get() + this->offset,
-        result->GetData().get(),
-        elements,
-        value,
-        ScalarOp::SUB
-    );
-
+    LaunchScalarKernel(result->GetData().get(), value, ScalarOp::SUB);
     return result;
 }
 template<typename T>
 shared_ptr<Tensor<T>> CudaTensor<T>::Mul(T value) const
 {
     auto result = Create(this->shape);
-    size_t elements = this->GetTotalElements();
-
-    LaunchScalarKernel(
-        this->pdata.get() + this->offset,
-        result->GetData().get(),
-        elements,
-        value,
-        ScalarOp::MUL
-    );
-
+    LaunchScalarKernel(result->GetData().get(), value, ScalarOp::MUL);
     return result;
 }
 template<typename T>
@@ -222,18 +158,8 @@ shared_ptr<Tensor<T>> CudaTensor<T>::Div(T value) const
     {
         throw std::runtime_error("Division by zero in tensor element-wise division");
     }
-
     auto result = Create(this->shape);
-    size_t elements = this->GetTotalElements();
-
-    LaunchScalarKernel(
-        this->pdata.get() + this->offset,
-        result->GetData().get(),
-        elements,
-        value,
-        ScalarOp::DIV
-    );
-
+    LaunchScalarKernel(result->GetData().get(), value, ScalarOp::DIV);
     return result;
 }
 template<typename T>
@@ -241,94 +167,50 @@ void CudaTensor<T>::Add_(const Tensor<T>& other)
 {
     if (!this->CheckDevice(other) || !this->CheckShape(other))
         return;
-
-    size_t elements = this->GetTotalElements();
-    LaunchElementwiseKernelInplace(
-        this->pdata.get() + this->offset,
-        other.GetData().get() + other.GetOffset(),
-        elements,
-        ElementwiseOp::ADD
-    );
+    LaunchElementwiseKernelInplace(other.GetData().get() + other.GetOffset(), ElementwiseOp::ADD);
 }
 template<typename T>
 void CudaTensor<T>::Sub_(const Tensor<T>& other)
 {
     if (!this->CheckDevice(other) || !this->CheckShape(other))
         return;
-
-    size_t elements = this->GetTotalElements();
-    LaunchElementwiseKernelInplace(
-        this->pdata.get() + this->offset,
-        other.GetData().get() + other.GetOffset(),
-        elements,
-        ElementwiseOp::SUB
-    );
+    LaunchElementwiseKernelInplace(other.GetData().get() + other.GetOffset(), ElementwiseOp::SUB);
 }
 template<typename T>
 void CudaTensor<T>::Mul_(const Tensor<T>& other)
 {
     if (!this->CheckDevice(other) || !this->CheckShape(other))
         return;
-
-    size_t elements = this->GetTotalElements();
-    LaunchElementwiseKernelInplace(
-        this->pdata.get() + this->offset,
-        other.GetData().get() + other.GetOffset(),
-        elements,
-        ElementwiseOp::MUL
-    );
+    LaunchElementwiseKernelInplace(other.GetData().get() + other.GetOffset(), ElementwiseOp::MUL);
 }
 template<typename T>
 void CudaTensor<T>::Div_(const Tensor<T>& other)
 {
     if (!this->CheckDevice(other) || !this->CheckShape(other))
         return;
-
     if (other.HasZero())
     {
         throw std::runtime_error("Division by zero in tensor element-wise division");
     }
-
-    size_t elements = this->GetTotalElements();
-    LaunchElementwiseKernelInplace(
-        this->pdata.get() + this->offset,
-        other.GetData().get() + other.GetOffset(),
-        elements,
-        ElementwiseOp::DIV
-    );
+    LaunchElementwiseKernelInplace(other.GetData().get() + other.GetOffset(), ElementwiseOp::DIV);
 }
 template<typename T>
 void CudaTensor<T>::Add_(T value)
 {
     size_t elements = this->GetTotalElements();
-    LaunchScalarKernelInplace(
-        this->pdata.get() + this->offset,
-        elements,
-        value,
-        ScalarOp::ADD
-    );
+    LaunchScalarKernelInplace(value, ScalarOp::ADD);
 }
 template<typename T>
 void CudaTensor<T>::Sub_(T value)
 {
     size_t elements = this->GetTotalElements();
-    LaunchScalarKernelInplace(
-        this->pdata.get() + this->offset,
-        elements,
-        value,
-        ScalarOp::SUB
-    );
+    LaunchScalarKernelInplace(value, ScalarOp::SUB);
 }
 template<typename T>
 void CudaTensor<T>::Mul_(T value)
 {
     size_t elements = this->GetTotalElements();
-    LaunchScalarKernelInplace(
-        this->pdata.get() + this->offset,
-        elements,
-        value,
-        ScalarOp::MUL
-    );
+    LaunchScalarKernelInplace(value, ScalarOp::MUL);
 }
 template<typename T>
 void CudaTensor<T>::Div_(T value)
@@ -337,14 +219,7 @@ void CudaTensor<T>::Div_(T value)
     {
         throw std::runtime_error("Division by zero in tensor element-wise division");
     }
-
-    size_t elements = this->GetTotalElements();
-    LaunchScalarKernelInplace(
-        this->pdata.get() + this->offset,
-        elements,
-        value,
-        ScalarOp::DIV
-    );
+    LaunchScalarKernelInplace(value, ScalarOp::DIV);
 }
 
 template<typename T>
@@ -470,7 +345,7 @@ bool CudaTensor<T>::CheckEqual(const vector<T>& data) const
     CUDA_CHECK(cudaMemset(d_result, 1, sizeof(bool)));
     int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
 
-    CheckEqualKernel<T> << <gridSize, defaultBlockSize >> > (this->pdata.get() + this->offset, (T*)dData.get(), (int*)dShape.get(), (int*)dStrides.get(),
+    CheckEqualKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, (T*)dData.get(), (int*)dShape.get(), (int*)dStrides.get(),
         this->shape.size(), elements, d_result);
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaStreamSynchronize(nullptr));
@@ -610,7 +485,7 @@ void CudaTensor<T>::FillValueWithStep(T start, T step)
 {
     size_t elements = this->GetTotalElements();
     int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
-    ArrangeKernel<T> << <gridSize, defaultBlockSize >> > (this->pdata.get() + this->offset, elements, start, step);
+    ArrangeKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, elements, start, step);
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaStreamSynchronize(nullptr));
 }
@@ -621,37 +496,38 @@ int CudaTensor<T>::GetDefaultGridSize(size_t elements) const
 }
 
 template<typename T>
-void CudaTensor<T>::LaunchElementwiseKernel(const T* a, const T* b, T* c, size_t elements, ElementwiseOp op)
+void CudaTensor<T>::LaunchElementwiseKernel(const T* right, T* result, ElementwiseOp op) const
 {
+    size_t elements = this->GetTotalElements();
     int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
-    ElementwiseKernel<T><<<gridSize, defaultBlockSize>>>(a, b, c, elements, static_cast<int>(op));
+    ElementwiseKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, right, result, elements, static_cast<int>(op));
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 }
-
 template<typename T>
-void CudaTensor<T>::LaunchElementwiseKernelInplace(T* a, const T* b, size_t elements, ElementwiseOp op)
+void CudaTensor<T>::LaunchElementwiseKernelInplace(const T* right, ElementwiseOp op)
 {
+    size_t elements = this->GetTotalElements();
     int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
-    ElementwiseInplaceKernel<T> << <gridSize, defaultBlockSize >> > (a, b, elements, static_cast<int>(op));
+    ElementwiseInplaceKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, right, elements, static_cast<int>(op));
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 }
-
 template<typename T>
-void CudaTensor<T>::LaunchScalarKernel(const T* a, T* c, size_t elements, T scalar, ScalarOp op)
+void CudaTensor<T>::LaunchScalarKernel(T* result, T scalar, ScalarOp op) const
 {
+    size_t elements = this->GetTotalElements();
     int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
-    ScalarKernel<T> << <gridSize, defaultBlockSize >> > (a, c, elements, scalar, static_cast<int>(op));
+    ScalarKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, result, elements, scalar, static_cast<int>(op));
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 }
-
 template<typename T>
-void CudaTensor<T>::LaunchScalarKernelInplace(T* a, size_t elements, T scalar, ScalarOp op)
+void CudaTensor<T>::LaunchScalarKernelInplace(T scalar, ScalarOp op)
 {
+    size_t elements = this->GetTotalElements();
     int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
-    ScalarInplaceKernel<T><<<gridSize, defaultBlockSize>>>(a, elements, scalar, static_cast<int>(op));
+    ScalarInplaceKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, elements, scalar, static_cast<int>(op));
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 }

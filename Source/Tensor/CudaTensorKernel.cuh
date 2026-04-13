@@ -8,7 +8,7 @@ using namespace std;
 
 // 元素级运算核函数
 template<typename T>
-__global__ void ElementwiseKernel(const T * a, const T * b, T * c, size_t elements, int op)
+__global__ void ElementwiseKernel(const T * left, const T * right, T * result, size_t elements, int op)
 {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= elements)
@@ -16,15 +16,15 @@ __global__ void ElementwiseKernel(const T * a, const T * b, T * c, size_t elemen
 
     switch (op)
     {
-    case 0: c[idx] = a[idx] + b[idx]; break;  // ADD
-    case 1: c[idx] = a[idx] - b[idx]; break;  // SUB
-    case 2: c[idx] = a[idx] * b[idx]; break;  // MUL
-    case 3: c[idx] = a[idx] / b[idx]; break;  // DIV
+    case 0: result[idx] = left[idx] + right[idx]; break;  // ADD
+    case 1: result[idx] = left[idx] - right[idx]; break;  // SUB
+    case 2: result[idx] = left[idx] * right[idx]; break;  // MUL
+    case 3: result[idx] = left[idx] / right[idx]; break;  // DIV
     }
 }
 // 原地运算核函数
 template<typename T>
-__global__ void ElementwiseInplaceKernel(T* a, const T* b, size_t elements, int op)
+__global__ void ElementwiseInplaceKernel(T* result, const T* right, size_t elements, int op)
 {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= elements)
@@ -32,15 +32,15 @@ __global__ void ElementwiseInplaceKernel(T* a, const T* b, size_t elements, int 
 
     switch (op)
     {
-    case 0: a[idx] += b[idx]; break;
-    case 1: a[idx] -= b[idx]; break;
-    case 2: a[idx] *= b[idx]; break;
-    case 3: a[idx] /= b[idx]; break;
+    case 0: result[idx] += right[idx]; break;
+    case 1: result[idx] -= right[idx]; break;
+    case 2: result[idx] *= right[idx]; break;
+    case 3: result[idx] /= right[idx]; break;
     }
 }
 // 标量运算核函数
 template<typename T>
-__global__ void ScalarKernel(const T* a, T* c, size_t elements, T scalar, int op)
+__global__ void ScalarKernel(const T* left, T* result, size_t elements, T scalar, int op)
 {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= elements)
@@ -48,15 +48,15 @@ __global__ void ScalarKernel(const T* a, T* c, size_t elements, T scalar, int op
 
     switch (op)
     {
-    case 0: c[idx] = a[idx] + scalar; break;
-    case 1: c[idx] = a[idx] - scalar; break;
-    case 2: c[idx] = a[idx] * scalar; break;
-    case 3: c[idx] = a[idx] / scalar; break;
+    case 0: result[idx] = left[idx] + scalar; break;
+    case 1: result[idx] = left[idx] - scalar; break;
+    case 2: result[idx] = left[idx] * scalar; break;
+    case 3: result[idx] = left[idx] / scalar; break;
     }
 }
 // 标量原地运算核函数
 template<typename T>
-__global__ void ScalarInplaceKernel(T* a, size_t elements, T scalar, int op)
+__global__ void ScalarInplaceKernel(T* result, size_t elements, T scalar, int op)
 {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= elements)
@@ -64,10 +64,10 @@ __global__ void ScalarInplaceKernel(T* a, size_t elements, T scalar, int op)
 
     switch (op)
     {
-    case 0: a[idx] += scalar; break;
-    case 1: a[idx] -= scalar; break;
-    case 2: a[idx] *= scalar; break;
-    case 3: a[idx] /= scalar; break;
+    case 0: result[idx] += scalar; break;
+    case 1: result[idx] -= scalar; break;
+    case 2: result[idx] *= scalar; break;
+    case 3: result[idx] /= scalar; break;
     }
 }
 // 检查是否包含零的核函数，注意由Host对result初始化为false

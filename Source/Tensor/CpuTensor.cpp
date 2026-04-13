@@ -81,25 +81,7 @@ shared_ptr<Tensor<T>> CpuTensor<T>::Add(const Tensor<T>& other) const
     {
         return nullptr;
     }
-    auto result = this->CreateCpuTensor(this->shape);
-    auto elements = this->GetTotalElements();
-    if (this->IsContiguous() && other.IsContiguous())
-    {
-        for (uint64_t i = 0; i < elements; ++i)
-        {
-            result->GetData().get()[i] = (this->pdata.get())[i] + other.GetData().get()[i];
-        }
-    }
-    else
-    {
-        vector<int> indices(this->shape.size());
-        for (size_t i = 0; i < elements; ++i)
-        {
-            result->GetData().get()[i] = At(indices) + other.At(indices);
-            this->UpdateIndices(indices);
-        }
-    }
-    return result;
+	return ExecuteElementWise(other, [](T a, T b) { return T(a + b); });
 }
 template<typename T>
 shared_ptr<Tensor<T>> CpuTensor<T>::Sub(const Tensor<T>& other) const
@@ -108,25 +90,7 @@ shared_ptr<Tensor<T>> CpuTensor<T>::Sub(const Tensor<T>& other) const
     {
         return nullptr;
     }
-    auto result = this->CreateCpuTensor(this->shape);
-    auto elements = this->GetTotalElements();
-    if (this->IsContiguous() && other.IsContiguous())
-    {
-        for (uint64_t i = 0; i < elements; ++i)
-        {
-            result->GetData().get()[i] = (this->pdata.get())[i] - other.GetData().get()[i];
-        }
-    }
-    else
-    {
-        vector<int> indices(this->shape.size());
-        for (size_t i = 0; i < elements; ++i)
-        {
-            result->GetData().get()[i] = At(indices) - other.At(indices);
-            this->UpdateIndices(indices);
-        }
-    }
-    return result;
+    return ExecuteElementWise(other, [](T a, T b) { return T(a - b); });
 }
 template<typename T>
 shared_ptr<Tensor<T>> CpuTensor<T>::Mul(const Tensor<T>& other) const
@@ -135,25 +99,7 @@ shared_ptr<Tensor<T>> CpuTensor<T>::Mul(const Tensor<T>& other) const
     {
         return nullptr;
     }
-    auto result = this->CreateCpuTensor(this->shape);
-    auto elements = this->GetTotalElements();
-    if (this->IsContiguous() && other.IsContiguous())
-    {
-        for (uint64_t i = 0; i < elements; ++i)
-        {
-            result->GetData().get()[i] = (this->pdata.get())[i] * other.GetData().get()[i];
-        }
-    }
-    else
-    {
-        vector<int> indices(this->shape.size());
-        for (size_t i = 0; i < elements; ++i)
-        {
-            result->GetData().get()[i] = At(indices) * other.At(indices);
-            this->UpdateIndices(indices);
-        }
-    }
-    return result;
+    return ExecuteElementWise(other, [](T a, T b) { return T(a * b); });
 }
 template<typename T>
 shared_ptr<Tensor<T>> CpuTensor<T>::Div(const Tensor<T>& other) const
@@ -166,95 +112,22 @@ shared_ptr<Tensor<T>> CpuTensor<T>::Div(const Tensor<T>& other) const
     {
         throw std::runtime_error("Division by zero in tensor element-wise division");
     }
-
-    auto result = this->CreateCpuTensor(this->shape);
-    auto elements = this->GetTotalElements();
-    if (this->IsContiguous() && other.IsContiguous())
-    {
-        for (uint64_t i = 0; i < elements; ++i)
-        {
-            result->GetData().get()[i] = (this->pdata.get())[i] / other.GetData().get()[i];
-        }
-    }
-    else
-    {
-        vector<int> indices(this->shape.size());
-        for (size_t i = 0; i < elements; ++i)
-        {
-            result->GetData().get()[i] = At(indices) / other.At(indices);
-            this->UpdateIndices(indices);
-        }
-    }
-    return result;
+    return ExecuteElementWise(other, [](T a, T b) { return T(a / b); });
 }
 template<typename T>
 shared_ptr<Tensor<T>> CpuTensor<T>::Add(T value) const
 {
-    auto result = this->CreateCpuTensor(this->shape);
-    auto elements = this->GetTotalElements();
-    if (this->IsContiguous())
-    {
-        for (uint64_t i = 0; i < elements; ++i)
-        {
-            result->GetData().get()[i] = (this->pdata.get())[i] + value;
-        }
-    }
-    else
-    {
-        vector<int> indices(this->shape.size());
-        for (size_t i = 0; i < elements; ++i)
-        {
-            result->GetData().get()[i] = At(indices) + value;
-            this->UpdateIndices(indices);
-        }
-    }
-    return result;
+	return ExecuteScalar(value, [](T a, T b) { return T(a + b); });
 }
 template<typename T>
 shared_ptr<Tensor<T>> CpuTensor<T>::Sub(T value) const
 {
-    auto result = this->CreateCpuTensor(this->shape);
-    auto elements = this->GetTotalElements();
-    if (this->IsContiguous())
-    {
-        for (uint64_t i = 0; i < elements; ++i)
-        {
-            result->GetData().get()[i] = (this->pdata.get())[i] - value;
-        }
-    }
-    else
-    {
-        vector<int> indices(this->shape.size());
-        for (size_t i = 0; i < elements; ++i)
-        {
-            result->GetData().get()[i] = At(indices) - value;
-            this->UpdateIndices(indices);
-        }
-    }
-    return result;
+    return ExecuteScalar(value, [](T a, T b) { return T(a - b); });
 }
 template<typename T>
 shared_ptr<Tensor<T>> CpuTensor<T>::Mul(T value) const
 {
-    auto result = this->CreateCpuTensor(this->shape);
-    auto elements = this->GetTotalElements();
-    if (this->IsContiguous())
-    {
-        for (uint64_t i = 0; i < elements; ++i)
-        {
-            result->GetData().get()[i] = (this->pdata.get())[i] * value;
-        }
-    }
-    else
-    {
-        vector<int> indices(this->shape.size());
-        for (size_t i = 0; i < elements; ++i)
-        {
-            result->GetData().get()[i] = At(indices) * value;
-            this->UpdateIndices(indices);
-        }
-    }
-    return result;
+    return ExecuteScalar(value, [](T a, T b) { return T(a * b); });
 }
 template<typename T>
 shared_ptr<Tensor<T>> CpuTensor<T>::Div(T value) const
@@ -263,25 +136,7 @@ shared_ptr<Tensor<T>> CpuTensor<T>::Div(T value) const
     {
         throw std::runtime_error("Division by zero in tensor element-wise division");
     }
-    auto result = this->CreateCpuTensor(this->shape);
-    auto elements = this->GetTotalElements();
-    if (this->IsContiguous())
-    {
-        for (uint64_t i = 0; i < elements; ++i)
-        {
-            result->GetData().get()[i] = (this->pdata.get())[i] / value;
-        }
-    }
-    else
-    {
-        vector<int> indices(this->shape.size());
-        for (size_t i = 0; i < elements; ++i)
-        {
-            result->GetData().get()[i] = At(indices) / value;
-            this->UpdateIndices(indices);
-        }
-    }
-    return result;
+    return ExecuteScalar(value, [](T a, T b) { return T(a / b); });
 }
 template<typename T>
 void CpuTensor<T>::Add_(const Tensor<T>& other)
@@ -290,23 +145,7 @@ void CpuTensor<T>::Add_(const Tensor<T>& other)
     {
         return;
     }
-    auto elements = this->GetTotalElements();
-    if (this->IsContiguous() && other.IsContiguous())
-    {
-        for (uint64_t i = 0; i < elements; ++i)
-        {
-            (this->pdata.get())[i] += other.GetData().get()[i];
-        }
-    }
-    else
-    {
-        vector<int> indices(this->shape.size());
-        for (size_t i = 0; i < elements; ++i)
-        {
-            At(indices) +=  other.At(indices);
-            this->UpdateIndices(indices);
-        }
-    }
+    ExecuteElementWiseInplace(other, [](T& a, T b) { return a += b; });
 }
 template<typename T>
 void CpuTensor<T>::Sub_(const Tensor<T>& other)
@@ -315,23 +154,7 @@ void CpuTensor<T>::Sub_(const Tensor<T>& other)
     {
         return;
     }
-    auto elements = this->GetTotalElements();
-    if (this->IsContiguous() && other.IsContiguous())
-    {
-        for (uint64_t i = 0; i < elements; ++i)
-        {
-            (this->pdata.get())[i] -= other.GetData().get()[i];
-        }
-    }
-    else
-    {
-        vector<int> indices(this->shape.size());
-        for (size_t i = 0; i < elements; ++i)
-        {
-            At(indices) -= other.At(indices);
-            this->UpdateIndices(indices);
-        }
-    }
+    ExecuteElementWiseInplace(other, [](T& a, T b) { return a -= b; });
 }
 template<typename T>
 void CpuTensor<T>::Mul_(const Tensor<T>& other)
@@ -340,23 +163,7 @@ void CpuTensor<T>::Mul_(const Tensor<T>& other)
     {
         return;
     }
-    auto elements = this->GetTotalElements();
-    if (this->IsContiguous() && other.IsContiguous())
-    {
-        for (uint64_t i = 0; i < elements; ++i)
-        {
-            (this->pdata.get())[i] *= other.GetData().get()[i];
-        }
-    }
-    else
-    {
-        vector<int> indices(this->shape.size());
-        for (size_t i = 0; i < elements; ++i)
-        {
-            At(indices) *= other.At(indices);
-            this->UpdateIndices(indices);
-        }
-    }
+    ExecuteElementWiseInplace(other, [](T& a, T b) { return a *= b; });
 }
 template<typename T>
 void CpuTensor<T>::Div_(const Tensor<T>& other)
@@ -370,86 +177,22 @@ void CpuTensor<T>::Div_(const Tensor<T>& other)
         throw std::runtime_error("Division by zero in tensor element-wise division");
         return;
     }
-    auto elements = this->GetTotalElements();
-    if (this->IsContiguous() && other.IsContiguous())
-    {
-        for (uint64_t i = 0; i < elements; ++i)
-        {
-            (this->pdata.get())[i] /= other.GetData().get()[i];
-        }
-    }
-    else
-    {
-        vector<int> indices(this->shape.size());
-        for (size_t i = 0; i < elements; ++i)
-        {
-            At(indices) /= other.At(indices);
-            this->UpdateIndices(indices);
-        }
-    }
+    ExecuteElementWiseInplace(other, [](T& a, T b) { return a /= b; });
 }
 template<typename T>
 void CpuTensor<T>::Add_(T value)
 {
-    auto elements = this->GetTotalElements();
-    if (this->IsContiguous())
-    {
-        for (uint64_t i = 0; i < elements; ++i)
-        {
-            (this->pdata.get())[i] += value;
-        }
-    }
-    else
-    {
-        vector<int> indices(this->shape.size());
-        for (size_t i = 0; i < elements; ++i)
-        {
-            At(indices) += value;
-            this->UpdateIndices(indices);
-        }
-    }
+    ExecuteScalarInplace(value, [](T& a, T b) { return a += b; });
 }
 template<typename T>
 void CpuTensor<T>::Sub_(T value)
 {
-    auto elements = this->GetTotalElements();
-    if (this->IsContiguous())
-    {
-        for (uint64_t i = 0; i < elements; ++i)
-        {
-            (this->pdata.get())[i] -= value;
-        }
-    }
-    else
-    {
-        vector<int> indices(this->shape.size());
-        for (size_t i = 0; i < elements; ++i)
-        {
-            At(indices) -= value;
-            this->UpdateIndices(indices);
-        }
-    }
+    ExecuteScalarInplace(value, [](T& a, T b) { return a -= b; });
 }
 template<typename T>
 void CpuTensor<T>::Mul_(T value)
 {
-    auto elements = this->GetTotalElements();
-    if (this->IsContiguous())
-    {
-        for (uint64_t i = 0; i < elements; ++i)
-        {
-            (this->pdata.get())[i] /= value;
-        }
-    }
-    else
-    {
-        vector<int> indices(this->shape.size());
-        for (size_t i = 0; i < elements; ++i)
-        {
-            At(indices) *= value;
-            this->UpdateIndices(indices);
-        }
-    }
+    ExecuteScalarInplace(value, [](T& a, T b) { return a *= b; });
 }
 template<typename T>
 void CpuTensor<T>::Div_(T value)
@@ -459,23 +202,7 @@ void CpuTensor<T>::Div_(T value)
         throw std::runtime_error("Division by zero in tensor element-wise division");
         return;
     }
-    auto elements = this->GetTotalElements();
-    if (this->IsContiguous())
-    {
-        for (uint64_t i = 0; i < elements; ++i)
-        {
-            (this->pdata.get())[i] /= value;
-        }
-    }
-    else
-    {
-        vector<int> indices(this->shape.size());
-        for (size_t i = 0; i < elements; ++i)
-        {
-            At(indices) /= value;
-            this->UpdateIndices(indices);
-        }
-    }
+    ExecuteScalarInplace(value, [](T& a, T b) { return a /= b; });
 }
 
 
@@ -739,6 +466,146 @@ void CpuTensor<T>::FillValueWithStep(T start, T step)
 }
 
 
+template<typename T>
+shared_ptr<Tensor<T>> CpuTensor<T>::ExecuteElementWise(const Tensor<T>& other, const function<T(T, T)>& op) const
+{
+    if (!this->CheckDevice(other) || !this->CheckShape(other))
+    {
+        return nullptr;
+    }
+    auto result = this->CreateCpuTensor(this->shape);
+    auto elements = this->GetTotalElements();
+    auto thisContiguous = this->IsContiguous();
+    auto otherContiguous = other.IsContiguous();
+    if (thisContiguous && otherContiguous)
+    {
+        for (uint64_t i = 0; i < elements; ++i)
+        {
+            result->GetData().get()[i] = op((this->pdata.get())[i], other.GetData().get()[i]);
+        }
+    }
+    else if (thisContiguous)
+    {
+        vector<int> indices(this->shape.size());
+        for (size_t i = 0; i < elements; ++i)
+        {
+            result->GetData().get()[i] = op((this->pdata.get())[i], other[indices]);
+            this->UpdateIndices(indices);
+        }
+    }
+    else if (otherContiguous)
+    {
+        vector<int> indices(this->shape.size());
+        for (size_t i = 0; i < elements; ++i)
+        {
+            result->GetData().get()[i] = op((*this)[indices], other.GetData().get()[i]);
+            this->UpdateIndices(indices);
+        }
+    }
+    else
+    {
+        vector<int> indices(this->shape.size());
+        for (size_t i = 0; i < elements; ++i)
+        {
+            result->GetData().get()[i] = op((*this)[indices], other[indices]);
+            this->UpdateIndices(indices);
+        }
+    }
+    return result;
+}
+template<typename T>
+void CpuTensor<T>::ExecuteElementWiseInplace(const Tensor<T>& other, const function<T(T&, T)>& op)
+{
+    if (!this->CheckDevice(other) || !this->CheckShape(other))
+    {
+        return;
+    }
+    auto elements = this->GetTotalElements();
+    auto thisContiguous = this->IsContiguous();
+    auto otherContiguous = other.IsContiguous();
+    if (thisContiguous && otherContiguous)
+    {
+        for (uint64_t i = 0; i < elements; ++i)
+        {
+            op((this->pdata.get())[i], other.GetData().get()[i]);
+        }
+    }
+    else if (thisContiguous)
+    {
+        vector<int> indices(this->shape.size());
+        for (size_t i = 0; i < elements; ++i)
+        {
+            op((this->pdata.get())[i], other[indices]);
+            this->UpdateIndices(indices);
+        }
+    }
+    else if (otherContiguous)
+    {
+        vector<int> indices(this->shape.size());
+        for (size_t i = 0; i < elements; ++i)
+        {
+            op((*this)[indices], other.GetData().get()[i]);
+            this->UpdateIndices(indices);
+        }
+    }
+    else
+    {
+        vector<int> indices(this->shape.size());
+        for (size_t i = 0; i < elements; ++i)
+        {
+            op((*this)[indices], other[indices]);
+            this->UpdateIndices(indices);
+        }
+    }
+}
+template<typename T>
+shared_ptr<Tensor<T>> CpuTensor<T>::ExecuteScalar(const T& value, const function<T(T, T)>& op) const
+{
+    auto result = this->CreateCpuTensor(this->shape);
+    auto elements = this->GetTotalElements();
+    if (this->IsContiguous())
+    {
+        vector<int> indices(this->shape.size());
+        for (size_t i = 0; i < elements; ++i)
+        {
+            result->GetData().get()[i] = op((this->pdata.get())[i], value);
+            this->UpdateIndices(indices);
+        }
+    }
+    else
+    {
+        vector<int> indices(this->shape.size());
+        for (size_t i = 0; i < elements; ++i)
+        {
+            result->GetData().get()[i] = op((*this)[indices], value);
+            this->UpdateIndices(indices);
+        }
+    }
+    return result;
+}
+template<typename T>
+void CpuTensor<T>::ExecuteScalarInplace(const T& value, const function<T(T&, T)>& op)
+{
+    auto elements = this->GetTotalElements();
+    if (this->IsContiguous())
+    {
+        vector<int> indices(this->shape.size());
+        for (size_t i = 0; i < elements; ++i)
+        {
+            op((this->pdata.get())[i], value);
+            this->UpdateIndices(indices);
+        }
+    }
+    else
+    {
+        vector<int> indices(this->shape.size());
+        for (size_t i = 0; i < elements; ++i)
+        {
+            op((*this)[indices], value);
+            this->UpdateIndices(indices);
+        }
+    }
+}
 
 template class CpuTensor<float>;
 template class CpuTensor<double>;
