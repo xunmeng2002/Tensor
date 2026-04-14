@@ -55,7 +55,7 @@ void TestTensor::Test()
     //TestExpandAndClone();
 
     //TestAddSubMulDiv();
-    TestToDestType();
+    TestTensorConvert();
 
     printf("End TestTensor for device: %s\n", device == DeviceType::CPU ? "CPU" : "CUDA");
 }
@@ -459,9 +459,9 @@ void TestTensor::TestAddSubMulDiv()
 
     printf("--------End TestAddSubMulDiv--------\n\n");
 }
-void TestTensor::TestToDestType()
+void TestTensor::TestTensorConvert()
 {
-    printf("\n--------Start TestToDestType--------\n");
+    printf("\n--------Start TestTensorConvert--------\n");
 
     auto tensor1 = PrepareTestTensor2();
     auto tensor2 = PrepareTestTensor3();
@@ -487,7 +487,7 @@ void TestTensor::TestToDestType()
             { uint32_t(-11), uint32_t(-9), uint32_t(-7), uint32_t(-5), uint32_t(-3), uint32_t(-1), 1, 3, 5, 7, 9, 11 });
     }
 
-    printf("--------End TestToDestType--------\n\n");
+    printf("--------End TestTensorConvert--------\n\n");
 }
 
 

@@ -15,7 +15,7 @@ link_directories(${CMAKE_SOURCE_DIR}/out/build/x64-Debug/Target/Tensor)
 
 add_executable(${PROJECT_NAME} ${all_file})
 
-target_link_libraries(${PROJECT_NAME} Tensor.lib)
+target_link_libraries(${PROJECT_NAME} Tensor)
 
 # 为 Debug 模式添加 CUDA 调试符号
 target_compile_options(${PROJECT_NAME} PRIVATE  $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CUDA>>:-G -g -O0>)

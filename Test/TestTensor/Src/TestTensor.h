@@ -32,7 +32,7 @@ protected:
 	void TestExpandAndClone();
 
 	void TestAddSubMulDiv();
-	void TestToDestType();
+	void TestTensorConvert();
 
 private:
 	DeviceType device;
