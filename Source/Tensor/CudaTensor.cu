@@ -4,24 +4,7 @@
 #include "CpuTensor.h"
 
 
-#define CUDA_CHECK(error) CudaCheck(error, __FILE__, __LINE__);
 
-static void CudaCheck(cudaError_t error, const char* file, int line)
-{
-    if (error != cudaSuccess)
-    {
-        printf("CUDA Error: %s at %s:%d\n", cudaGetErrorString(error), file, line);
-        throw std::runtime_error("CUDA error occurred");
-    }
-}
-
-void CudaFreeDirect(void* ptr)
-{
-    cudaFreeAsync(ptr, nullptr);
-}
-
-template<typename T>
-int CudaTensor<T>::defaultBlockSize = 256;
 
 template<typename T>
 CudaTensor<T>::CudaTensor() noexcept
@@ -309,14 +292,6 @@ std::shared_ptr<T> CudaTensor<T>::Allocate(size_t elements)
     return shared_ptr<T>((T*)ptr, CudaFreeDirect);
 }
 template<typename T>
-std::shared_ptr<uint8_t> CudaTensor<T>::AllocateBytes(size_t bytes)
-{
-    uint8_t* ptr = nullptr;
-    cudaError_t error = cudaMallocAsync(&ptr, bytes, nullptr);
-    CUDA_CHECK(error);
-	return shared_ptr<uint8_t>(ptr, CudaFreeDirect);
-}
-template<typename T>
 T CudaTensor<T>::At(const std::vector<int>& indices) const
 {
     size_t currOffset = this->CalculateOffset(indices);
@@ -343,9 +318,9 @@ bool CudaTensor<T>::CheckEqual(const vector<T>& data) const
     bool* d_result;
     CUDA_CHECK(cudaMalloc(&d_result, sizeof(bool)));
     CUDA_CHECK(cudaMemset(d_result, 1, sizeof(bool)));
-    int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
+    int gridSize = (elements + DefaultBlockSize - 1) / DefaultBlockSize;
 
-    CheckEqualKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, (T*)dData.get(), (int*)dShape.get(), (int*)dStrides.get(),
+    CheckEqualKernel<T><<<gridSize, DefaultBlockSize>>>(this->pdata.get() + this->offset, (T*)dData.get(), (int*)dShape.get(), (int*)dStrides.get(),
         this->shape.size(), elements, d_result);
     CUDA_CHECK(cudaGetLastError());
 
@@ -380,14 +355,19 @@ void CudaTensor<T>::Contiguous_()
     this->strides = this->GetContiguousStrides();
 }
 template<typename T>
+int CudaTensor<T>::GetDefaultGridSize(size_t elements) const
+{
+    return (elements + DefaultBlockSize - 1) / DefaultBlockSize;
+}
+template<typename T>
 bool CudaTensor<T>::HasZero() const
 {
     size_t elements = this->GetTotalElements();
     bool* d_result;
     CUDA_CHECK(cudaMalloc(&d_result, sizeof(bool)));
     CUDA_CHECK(cudaMemset(d_result, 0, sizeof(bool)));
-    int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
-    HasZeroKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, elements, d_result);
+    int gridSize = (elements + DefaultBlockSize - 1) / DefaultBlockSize;
+    HasZeroKernel<T><<<gridSize, DefaultBlockSize>>>(this->pdata.get() + this->offset, elements, d_result);
     CUDA_CHECK(cudaGetLastError());
     bool result;
     CUDA_CHECK(cudaMemcpy(&result, d_result, sizeof(bool), cudaMemcpyDeviceToHost));
@@ -444,7 +424,7 @@ void CudaTensor<T>::CopyDataNoncontiguous(T* dest) const
     auto dShape = CopyVectorToDevice(this->shape);
     auto dStrides = CopyVectorToDevice(this->strides);
     auto gridSize = GetDefaultGridSize(elements);
-    CopyFromNoncontiguousKernel<<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, dest, (int*)dShape.get(), (int*)dStrides.get(), dims, elements);
+    CopyFromNoncontiguousKernel<<<gridSize, DefaultBlockSize>>>(this->pdata.get() + this->offset, dest, (int*)dShape.get(), (int*)dStrides.get(), dims, elements);
 }
 template<typename T>
 void CudaTensor<T>::CopyDataRepeat(Tensor<T>* repeatTensor, const std::vector<int>& repeats) const
@@ -455,47 +435,33 @@ void CudaTensor<T>::CopyDataRepeat(Tensor<T>* repeatTensor, const std::vector<in
     auto dStrides = CopyVectorToDevice(this->strides);
     auto dDestShape = CopyVectorToDevice(repeatTensor->GetShape());
     auto gridSize = GetDefaultGridSize(elements);
-    CopyDataRepeatKernel<<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, repeatTensor->GetData().get(), (int*)dShape.get(), (int*)dStrides.get(), (int*)dDestShape.get(), dims, elements);
+    CopyDataRepeatKernel<<<gridSize, DefaultBlockSize>>>(this->pdata.get() + this->offset, repeatTensor->GetData().get(), (int*)dShape.get(), (int*)dStrides.get(), (int*)dDestShape.get(), dims, elements);
 }
 
 
 
-template<typename T>
-template<typename VecT>
-std::shared_ptr<uint8_t> CudaTensor<T>::CopyVectorToDevice(const vector<VecT>& values)
-{
-    auto dValues = AllocateBytes(values.size() * sizeof(VecT));
-    CUDA_CHECK(cudaMemcpyAsync(dValues.get(), values.data(), values.size() * sizeof(VecT), cudaMemcpyHostToDevice, nullptr));
-    return dValues;
-}
 template<typename T>
 void CudaTensor<T>::FillValue(T value)
 {
     size_t elements = this->GetTotalElements();
-    int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
-    FillKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, elements, value);
+    int gridSize = (elements + DefaultBlockSize - 1) / DefaultBlockSize;
+    FillKernel<T><<<gridSize, DefaultBlockSize>>>(this->pdata.get() + this->offset, elements, value);
     CUDA_CHECK(cudaGetLastError());
 }
 template<typename T>
 void CudaTensor<T>::FillValueWithStep(T start, T step)
 {
     size_t elements = this->GetTotalElements();
-    int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
-    ArrangeKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, elements, start, step);
+    int gridSize = (elements + DefaultBlockSize - 1) / DefaultBlockSize;
+    ArrangeKernel<T><<<gridSize, DefaultBlockSize>>>(this->pdata.get() + this->offset, elements, start, step);
     CUDA_CHECK(cudaGetLastError());
 }
-template<typename T>
-int CudaTensor<T>::GetDefaultGridSize(size_t elements) const
-{
-    return (elements + defaultBlockSize - 1) / defaultBlockSize;
-}
-
 template<typename T>
 void CudaTensor<T>::LaunchElementwiseKernel(const T* right, T* result, ElementwiseOp op) const
 {
     size_t elements = this->GetTotalElements();
-    int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
-    ElementwiseKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, right, result, elements, static_cast<int>(op));
+    int gridSize = (elements + DefaultBlockSize - 1) / DefaultBlockSize;
+    ElementwiseKernel<T><<<gridSize, DefaultBlockSize>>>(this->pdata.get() + this->offset, right, result, elements, static_cast<int>(op));
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 }
@@ -503,8 +469,8 @@ template<typename T>
 void CudaTensor<T>::LaunchElementwiseKernelInplace(const T* right, ElementwiseOp op)
 {
     size_t elements = this->GetTotalElements();
-    int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
-    ElementwiseInplaceKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, right, elements, static_cast<int>(op));
+    int gridSize = (elements + DefaultBlockSize - 1) / DefaultBlockSize;
+    ElementwiseInplaceKernel<T><<<gridSize, DefaultBlockSize>>>(this->pdata.get() + this->offset, right, elements, static_cast<int>(op));
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 }
@@ -512,8 +478,8 @@ template<typename T>
 void CudaTensor<T>::LaunchScalarKernel(T* result, T scalar, ScalarOp op) const
 {
     size_t elements = this->GetTotalElements();
-    int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
-    ScalarKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, result, elements, scalar, static_cast<int>(op));
+    int gridSize = (elements + DefaultBlockSize - 1) / DefaultBlockSize;
+    ScalarKernel<T><<<gridSize, DefaultBlockSize>>>(this->pdata.get() + this->offset, result, elements, scalar, static_cast<int>(op));
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 }
@@ -521,8 +487,8 @@ template<typename T>
 void CudaTensor<T>::LaunchScalarKernelInplace(T scalar, ScalarOp op)
 {
     size_t elements = this->GetTotalElements();
-    int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
-    ScalarInplaceKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, elements, scalar, static_cast<int>(op));
+    int gridSize = (elements + DefaultBlockSize - 1) / DefaultBlockSize;
+    ScalarInplaceKernel<T><<<gridSize, DefaultBlockSize>>>(this->pdata.get() + this->offset, elements, scalar, static_cast<int>(op));
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 }

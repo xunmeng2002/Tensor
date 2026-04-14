@@ -5,7 +5,18 @@
 
 using namespace std;
 
+#define CUDA_CHECK(error) CudaCheck(error, __FILE__, __LINE__);
+void CudaCheck(cudaError_t error, const char* file, int line);
+void CudaFreeDirect(void* ptr);
+std::shared_ptr<uint8_t> AllocateBytes(size_t bytes);
 
+template<typename T>
+std::shared_ptr<uint8_t> CopyVectorToDevice(const vector<T>& values)
+{
+    auto dValues = AllocateBytes(values.size() * sizeof(T));
+    CUDA_CHECK(cudaMemcpyAsync(dValues.get(), values.data(), values.size() * sizeof(T), cudaMemcpyHostToDevice, nullptr));
+    return dValues;
+}
 // 元素级运算核函数
 template<typename T>
 __global__ void ElementwiseKernel(const T * left, const T * right, T * result, size_t elements, int op)
@@ -154,6 +165,31 @@ __global__ void CopyFromNoncontiguousKernel(const T* __restrict__ src, T* __rest
         srcOffset += coord * strides[d];
     }
     dst[idx] = src[srcOffset];
+}
+
+template<typename Src, typename Dest>
+__global__ void CopyDataToDestTypeContiguousKernel(const Src* __restrict__ src, Dest* __restrict__ dst, const int* __restrict__ shape, const int* __restrict__ strides, const int dims, const size_t elements)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= elements)
+        return;
+    dst[idx] = (Dest)src[idx];
+}
+template<typename Src, typename Dest>
+__global__ void CopyDataToDestTypeNoncontiguousKernel(const Src* __restrict__ src, Dest* __restrict__ dst, const int* __restrict__ shape, const int* __restrict__ strides, const int dims, const size_t elements)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= elements)
+        return;
+    int linearIndex = idx;
+    size_t srcOffset = 0;
+    for (int d = dims - 1; d >= 0; --d)
+    {
+        int coord = linearIndex % shape[d];
+        linearIndex /= shape[d];
+        srcOffset += coord * strides[d];
+    }
+    dst[idx] = (Dest)src[srcOffset];
 }
 
 template<typename T>

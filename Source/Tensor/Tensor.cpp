@@ -1,6 +1,7 @@
 #pragma once
 #include "Tensor.h"
 
+
 using namespace std;
 
 template<typename T>
@@ -185,6 +186,66 @@ Tensor<T>& Tensor<T>::operator/=(T value)
 }
 
 
+template<typename T>
+uint64_t Tensor<T>::CalculateOffset(const std::vector<int>& indices) const
+{
+    if (indices.size() != shape.size())
+    {
+        throw std::invalid_argument("Number of indices must match tensor dimensions");
+    }
+    uint64_t currOffset = this->offset;
+    for (size_t i = 0; i < indices.size(); ++i)
+    {
+        if (indices[i] + shape[i] < 0 || indices[i] >= shape[i])
+        {
+            throw std::out_of_range("Index out of bounds");
+        }
+        if (indices[i] < 0)
+        {
+            currOffset += (indices[i] + shape[i]) * strides[i];
+        }
+        else
+        {
+            currOffset += indices[i] * strides[i];
+        }
+    }
+    return currOffset;
+}
+template<typename T>
+uint64_t Tensor<T>::CalculateOffset(const std::vector<int>& indices, uint64_t offset, const std::vector<int>& shape, const std::vector<int>& strides)
+{
+    if (indices.size() != shape.size())
+    {
+        throw std::invalid_argument("Number of indices must match tensor dimensions");
+    }
+    uint64_t currOffset = offset;
+    for (size_t i = 0; i < indices.size(); ++i)
+    {
+        if (indices[i] + shape[i] < 0 || indices[i] >= shape[i])
+        {
+            throw std::out_of_range("Index out of bounds");
+        }
+        if (indices[i] < 0)
+        {
+            currOffset += (indices[i] + shape[i]) * strides[i];
+        }
+        else
+        {
+            currOffset += indices[i] * strides[i];
+        }
+    }
+    return currOffset;
+}
+template<typename T>
+uint64_t Tensor<T>::CalculateOffsetUnChecked(const std::vector<int>& indices) const
+{
+    uint64_t curr_offset = this->offset;
+    for (size_t i = 0; i < indices.size(); ++i)
+    {
+        curr_offset += indices[i] * strides[i];
+    }
+    return curr_offset;
+}
 template<typename T>
 bool Tensor<T>::CheckDims(const vector<int>& dims)
 {
@@ -701,6 +762,21 @@ shared_ptr<Tensor<T>> Tensor<T>::Unsqueeze(int dim) const
     return result;
 }
 template<typename T>
+void Tensor<T>::UpdateIndices(std::vector<int>& indices) const
+{
+    for (int dim = (int)shape.size() - 1; dim >= 0; --dim)
+    {
+        if (++indices[dim] < shape[dim])
+        {
+            break;
+        }
+        else
+        {
+            indices[dim] = 0;
+        }
+    }
+}
+template<typename T>
 shared_ptr<Tensor<T>> Tensor<T>::View(const std::vector<int>& newShape) const
 {
     vector<int> cleanedShape = newShape;
@@ -712,66 +788,6 @@ shared_ptr<Tensor<T>> Tensor<T>::View(const std::vector<int>& newShape) const
 }
 
 
-template<typename T>
-uint64_t Tensor<T>::CalculateOffset(const std::vector<int>& indices) const
-{
-    if (indices.size() != shape.size())
-    {
-        throw std::invalid_argument("Number of indices must match tensor dimensions");
-    }
-    uint64_t currOffset = this->offset;
-    for (size_t i = 0; i < indices.size(); ++i)
-    {
-        if (indices[i] + shape[i] < 0 || indices[i] >= shape[i])
-        {
-            throw std::out_of_range("Index out of bounds");
-        }
-        if (indices[i] < 0)
-        {
-            currOffset += (indices[i] + shape[i]) * strides[i];
-		}
-        else
-        {
-            currOffset += indices[i] * strides[i];
-        }
-    }
-    return currOffset;
-}
-template<typename T>
-uint64_t Tensor<T>::CalculateOffset(const std::vector<int>& indices, uint64_t offset, const std::vector<int>& shape, const std::vector<int>& strides)
-{
-    if (indices.size() != shape.size())
-    {
-        throw std::invalid_argument("Number of indices must match tensor dimensions");
-    }
-    uint64_t currOffset = offset;
-    for (size_t i = 0; i < indices.size(); ++i)
-    {
-        if (indices[i] + shape[i] < 0 || indices[i] >= shape[i])
-        {
-            throw std::out_of_range("Index out of bounds");
-        }
-        if (indices[i] < 0)
-        {
-            currOffset += (indices[i] + shape[i]) * strides[i];
-        }
-        else
-        {
-            currOffset += indices[i] * strides[i];
-        }
-    }
-    return currOffset;
-}
-template<typename T>
-uint64_t Tensor<T>::CalculateOffsetUnChecked(const std::vector<int>& indices) const
-{
-    uint64_t curr_offset = this->offset;
-    for (size_t i = 0; i < indices.size(); ++i)
-    {
-        curr_offset += indices[i] * strides[i];
-    }
-    return curr_offset;
-}
 template<typename T>
 bool Tensor<T>::CheckDevice(const Tensor& other) const
 {
@@ -901,21 +917,6 @@ void Tensor<T>::PrintPretty(int dim, std::vector<int>& indices, const std::share
         }
     }
     std::cout << "]";
-}
-template<typename T>
-void Tensor<T>::UpdateIndices(std::vector<int>& indices) const
-{
-    for (int dim = (int)shape.size() - 1; dim >= 0; --dim)
-    {
-        if (++indices[dim] < shape[dim])
-        {
-            break;
-        }
-        else
-        {
-            indices[dim] = 0;
-        }
-    }
 }
 template<typename T>
 bool Tensor<T>::ValidShape(vector<int>& newShape) const

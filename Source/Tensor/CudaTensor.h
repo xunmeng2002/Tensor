@@ -3,6 +3,7 @@
 #include <functional>
 #include <memory>
 
+constexpr int DefaultBlockSize = 256;
 
 template<typename T>
 class CudaTensor : public Tensor<T>
@@ -49,12 +50,12 @@ public:
 
 
     static std::shared_ptr<T> Allocate(size_t elements);
-    static  std::shared_ptr<uint8_t> AllocateBytes(size_t bytes);
     virtual T At(const std::vector<int>& indices) const override;
     virtual void SetAt(const std::vector<int>& indices, const T& value) override;
     virtual bool CheckEqual(const vector<T>& data) const override;
     virtual shared_ptr<Tensor<T>> Contiguous() const override;
     virtual void Contiguous_() override;
+    int GetDefaultGridSize(size_t elements) const;
     virtual bool HasZero() const override;
     virtual shared_ptr<Tensor<T>> ToDevice(DeviceType targetDevice) const override;
 	shared_ptr<Tensor<T>> ToHost() const;
@@ -64,19 +65,12 @@ protected:
     virtual void CopyDataRepeat(Tensor<T>* repeatTensor, const std::vector<int>& repeats) const override;
 
 private:
-    template<typename VecT>
-    static std::shared_ptr<uint8_t> CopyVectorToDevice(const vector<VecT>& values);
     void FillValue(T value);
     void FillValueWithStep(T start, T step);
-    int GetDefaultGridSize(size_t elements) const;
-
     void LaunchElementwiseKernel(const T* right, T* result, ElementwiseOp op) const;
     void LaunchElementwiseKernelInplace(const T* right, ElementwiseOp op);
     void LaunchScalarKernel(T* result, T scalar, ScalarOp op) const;
     void LaunchScalarKernelInplace(T scalar, ScalarOp op);
-
-protected:
-    static int defaultBlockSize;
 };
 
 

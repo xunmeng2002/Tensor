@@ -74,6 +74,10 @@ public:
     virtual T At(const std::vector<int>& indices) const = 0;
     virtual void SetAt(const std::vector<int>& indices, const T& value) = 0;
 
+
+    uint64_t CalculateOffset(const std::vector<int>& indices) const;
+    static uint64_t CalculateOffset(const std::vector<int>& indices, uint64_t offset, const std::vector<int>& shape, const std::vector<int>& strides);
+    uint64_t CalculateOffsetUnChecked(const std::vector<int>& indices) const;
     bool CheckDims(const vector<int>& dims);
     virtual bool CheckEqual(const vector<T>& data) const = 0;
     shared_ptr<Tensor> Clone() const;
@@ -108,12 +112,10 @@ public:
 	virtual shared_ptr<Tensor> ToDevice(DeviceType targetDevice) const = 0;
     bool Transpose(int dim1, int dim2);
     shared_ptr<Tensor> Unsqueeze(int dim) const;
+    void UpdateIndices(std::vector<int>& indices) const;
     shared_ptr<Tensor> View(const std::vector<int>& newShape) const;
 
 protected:
-    uint64_t CalculateOffset(const std::vector<int>& indices) const;
-    static uint64_t CalculateOffset(const std::vector<int>& indices, uint64_t offset, const std::vector<int>& shape, const std::vector<int>& strides);
-    uint64_t CalculateOffsetUnChecked(const std::vector<int>& indices) const;
     bool CheckDevice(const Tensor& other) const;
     bool CheckShape(const Tensor& other) const;
     bool CheckIndex(const std::vector<int>& indices) const;
@@ -125,7 +127,6 @@ protected:
     std::vector<int> LinearToIndices(size_t linearIndex) const;
     static void PrintCompact(int dim, std::vector<int>& indices, const std::shared_ptr<T>& pdata, const size_t& offset, const std::vector<int>& shape, const std::vector<int>& strides);
     static void PrintPretty(int dim, std::vector<int>& indices, const std::shared_ptr<T>& pdata, const size_t& offset, const std::vector<int>& shape, const std::vector<int>& strides);
-    void UpdateIndices(std::vector<int>& indices) const;
     bool ValidShape(vector<int>& newShape) const;
     shared_ptr<Tensor> ViewImpl(const std::vector<int>& newShape) const;
 

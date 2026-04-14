@@ -32,6 +32,7 @@ protected:
 	void TestExpandAndClone();
 
 	void TestAddSubMulDiv();
+	void TestToDestType();
 
 private:
 	DeviceType device;

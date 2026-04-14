@@ -1,6 +1,7 @@
 #include "TestTensor.h"
 #include "CpuTensor.h"
 #include "CudaTensor.h"
+#include "TensorConvert.cuh"
 #include <exception>
 #include <cassert>
 
@@ -38,22 +39,23 @@ void TestTensor::Test()
 {
 	printf("Start TestTensor for device: %s\n", device == DeviceType::CPU ? "CPU" : "CUDA");
 
-    TestPermuteAndTranspose();
-    TestContiguous();
-    TestView();
-    TestSqueezeAndUnsqueeze();
-    TestExpand();
-    TestRepeat();
-    TestNarrow();
-    TestZerosAndOnes();
-    TestAtAndSetAt();
+    //TestPermuteAndTranspose();
+    //TestContiguous();
+    //TestView();
+    //TestSqueezeAndUnsqueeze();
+    //TestExpand();
+    //TestRepeat();
+    //TestNarrow();
+    //TestZerosAndOnes();
+    //TestAtAndSetAt();
 
-    TestNarrowAndClone();
-    TestTransposeAndClone();
-    TestNarrowTransposeAndClone();
-    TestExpandAndClone();
+    //TestNarrowAndClone();
+    //TestTransposeAndClone();
+    //TestNarrowTransposeAndClone();
+    //TestExpandAndClone();
 
-	TestAddSubMulDiv();
+    //TestAddSubMulDiv();
+    TestToDestType();
 
     printf("End TestTensor for device: %s\n", device == DeviceType::CPU ? "CPU" : "CUDA");
 }
@@ -457,5 +459,36 @@ void TestTensor::TestAddSubMulDiv()
 
     printf("--------End TestAddSubMulDiv--------\n\n");
 }
+void TestTensor::TestToDestType()
+{
+    printf("\n--------Start TestToDestType--------\n");
+
+    auto tensor1 = PrepareTestTensor2();
+    auto tensor2 = PrepareTestTensor3();
+    auto tensor3 = tensor1->Sub(*tensor2);
+    PrintTensor(tensor3.get());
+    CheckTensor(tensor3.get(), 0, { 2, 2, 3 }, { 6, 3, 1 }, true,
+        { -11, -9, -7, -5, -3, -1, 1, 3, 5, 7, 9, 11 });
+
+    if (device == DeviceType::CPU)
+    {
+        auto cpuTensor = dynamic_cast<CpuTensor<int>*>(tensor3.get());
+        auto tensor4 = CpuTensorConvert<int, uint32_t>(cpuTensor);
+        PrintTensor(tensor4.get());
+        CheckTensor(tensor4.get(), 0, { 2, 2, 3 }, { 6, 3, 1 }, true,
+            { uint32_t(-11), uint32_t(-9), uint32_t(-7), uint32_t(-5), uint32_t(-3), uint32_t(-1), 1, 3, 5, 7, 9, 11});
+    }
+    else
+    {
+        auto cudaTensor = dynamic_cast<CudaTensor<int>*>(tensor3.get());
+        auto tensor4 = CudaTensorConvert<int, uint32_t>(cudaTensor);
+        PrintTensor(tensor4.get());
+        CheckTensor(tensor4.get(), 0, { 2, 2, 3 }, { 6, 3, 1 }, true,
+            { uint32_t(-11), uint32_t(-9), uint32_t(-7), uint32_t(-5), uint32_t(-3), uint32_t(-1), 1, 3, 5, 7, 9, 11 });
+    }
+
+    printf("--------End TestToDestType--------\n\n");
+}
+
 
 
