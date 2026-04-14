@@ -157,14 +157,14 @@ __global__ void CopyFromNoncontiguousKernel(const T* __restrict__ src, T* __rest
 }
 
 template<typename T>
-__global__ void RepeatKernel(const T* srcData, T* destData, const int* srcShape, const int* srcStrides,
-    const int* destShape, int64_t src_offset, int dims, int64_t elements)
+__global__ void CopyDataRepeatKernel(const T* srcData, T* destData, const int* srcShape, const int* srcStrides,
+    const int* destShape, int dims, int64_t elements)
 {
     int64_t index = blockIdx.x * blockDim.x + threadIdx.x;
     if (index >= elements)
         return;
 	int64_t remaining = index;
-    int64_t srcIndex = src_offset;
+    int64_t srcIndex = 0;
     for (int64_t d = dims-1; d >= 0; --d)
     {
 		int64_t destCoord = remaining % destShape[d];

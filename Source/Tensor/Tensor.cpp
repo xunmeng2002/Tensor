@@ -535,7 +535,7 @@ shared_ptr<Tensor<T>> Tensor<T>::Repeat(const std::vector<int>& repeats) const
     {
         if (r <= 0)
         {
-            printf("Repeat counts must be positive\n");
+            printf("Repeats count must be positive\n");
             return nullptr;
         }
 	}

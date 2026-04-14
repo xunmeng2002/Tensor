@@ -348,7 +348,6 @@ bool CudaTensor<T>::CheckEqual(const vector<T>& data) const
     CheckEqualKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, (T*)dData.get(), (int*)dShape.get(), (int*)dStrides.get(),
         this->shape.size(), elements, d_result);
     CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaStreamSynchronize(nullptr));
 
     bool result;
     CUDA_CHECK(cudaMemcpy(&result, d_result, sizeof(bool), cudaMemcpyDeviceToHost));
@@ -379,7 +378,6 @@ void CudaTensor<T>::Contiguous_()
     this->pdata = newPtr;
     this->offset = 0;
     this->strides = this->GetContiguousStrides();
-    CUDA_CHECK(cudaStreamSynchronize(nullptr));
 }
 template<typename T>
 bool CudaTensor<T>::HasZero() const
@@ -391,7 +389,6 @@ bool CudaTensor<T>::HasZero() const
     int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
     HasZeroKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, elements, d_result);
     CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaStreamSynchronize(nullptr));
     bool result;
     CUDA_CHECK(cudaMemcpy(&result, d_result, sizeof(bool), cudaMemcpyDeviceToHost));
     CUDA_CHECK(cudaFree(d_result));
@@ -458,7 +455,7 @@ void CudaTensor<T>::CopyDataRepeat(Tensor<T>* repeatTensor, const std::vector<in
     auto dStrides = CopyVectorToDevice(this->strides);
     auto dDestShape = CopyVectorToDevice(repeatTensor->GetShape());
     auto gridSize = GetDefaultGridSize(elements);
-    RepeatKernel<<<gridSize, defaultBlockSize>>>(this->pdata.get(), repeatTensor->GetData().get(), (int*)dShape.get(), (int*)dStrides.get(), (int*)dDestShape.get(), this->offset, dims, elements);
+    CopyDataRepeatKernel<<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, repeatTensor->GetData().get(), (int*)dShape.get(), (int*)dStrides.get(), (int*)dDestShape.get(), dims, elements);
 }
 
 
@@ -478,7 +475,6 @@ void CudaTensor<T>::FillValue(T value)
     int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
     FillKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, elements, value);
     CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaStreamSynchronize(nullptr));
 }
 template<typename T>
 void CudaTensor<T>::FillValueWithStep(T start, T step)
@@ -487,7 +483,6 @@ void CudaTensor<T>::FillValueWithStep(T start, T step)
     int gridSize = (elements + defaultBlockSize - 1) / defaultBlockSize;
     ArrangeKernel<T><<<gridSize, defaultBlockSize>>>(this->pdata.get() + this->offset, elements, start, step);
     CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaStreamSynchronize(nullptr));
 }
 template<typename T>
 int CudaTensor<T>::GetDefaultGridSize(size_t elements) const
