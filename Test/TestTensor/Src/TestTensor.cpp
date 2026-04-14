@@ -46,6 +46,7 @@ void TestTensor::Test()
     //TestRepeat();
     //TestNarrow();
     //TestZerosAndOnes();
+    TestAtAndSetAt();
 
     //TestNarrowAndClone();
     //TestTransposeAndClone();
@@ -300,7 +301,22 @@ void TestTensor::TestZerosAndOnes()
 
 	printf("--------End TestZerosAndOnes--------\n\n");
 }
+void TestTensor::TestAtAndSetAt()
+{
+    printf("\n--------Start TestAtAndSetAt--------\n");
 
+    auto tensor1 = PrepareTestTensor();
+    auto value = tensor1->At({ 1,1,1 });
+    assert(value == 18);
+    tensor1->SetAt({ 1,1,2 }, 100);
+    value = tensor1->At({ 1,1,2 });
+    assert(value == 100);
+	PrintTensor(tensor1.get());
+    CheckTensor(tensor1.get(), 0, {2,3,4}, {12, 4, 1}, true,
+        { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 100, 20, 21, 22, 23, 24 });
+
+    printf("--------End TestAtAndSetAt--------\n\n");
+}
 
 void TestTensor::TestNarrowAndClone()
 {
@@ -414,6 +430,8 @@ void TestTensor::TestExpandAndClone()
 
 void TestTensor::TestAddSubMulDiv()
 {
+    printf("\n--------Start TestAddSubMulDiv--------\n");
+
 	auto tensor1 = PrepareTestTensor2();
 	auto tensor2 = PrepareTestTensor3();
 	auto tensor3 = tensor1->Add(*tensor2);
@@ -436,6 +454,8 @@ void TestTensor::TestAddSubMulDiv()
     CheckTensor(tensor6.get(), 0, { 2, 2, 3 }, { 6, 3, 1 }, true,
         { 1 / 12, 2 / 11, 3 / 10, 4 / 9, 5 / 8, 6 / 7, 
 		  7 / 6, 8 / 5, 9 / 4, 10 / 3, 11 / 2, 12 / 1 });
+
+    printf("--------End TestAddSubMulDiv--------\n\n");
 }
 
 

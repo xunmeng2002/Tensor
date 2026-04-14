@@ -23,6 +23,7 @@ protected:
 	void TestRepeat();
 	void TestNarrow();
 	void TestZerosAndOnes();
+	void TestAtAndSetAt();
 
 
 	void TestNarrowAndClone();
