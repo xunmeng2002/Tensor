@@ -489,6 +489,7 @@ void Tensor<T>::PrintInfo() const
     printf("Offset: %llu\n", offset);
     printf("IsContiguous: %s\n", IsContiguous() ? "True" : "False");
     printf("HasValidDenseLayout: %s\n", HasValidDenseLayout() ? "True" : "False");
+	printf("Device: %s\n", device == DeviceType::CPU ? "CPU" : "CUDA");
     std::cout << "Shape: [";
     for (size_t i = 0; i < shape.size(); ++i)
     {

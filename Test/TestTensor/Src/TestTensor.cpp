@@ -38,20 +38,20 @@ void TestTensor::Test()
 {
 	printf("Start TestTensor for device: %s\n", device == DeviceType::CPU ? "CPU" : "CUDA");
 
-    //TestPermuteAndTranspose();
-    //TestContiguous();
-    //TestView();
-    //TestSqueezeAndUnsqueeze();
-    //TestExpand();
-    //TestRepeat();
-    //TestNarrow();
-    //TestZerosAndOnes();
+    TestPermuteAndTranspose();
+    TestContiguous();
+    TestView();
+    TestSqueezeAndUnsqueeze();
+    TestExpand();
+    TestRepeat();
+    TestNarrow();
+    TestZerosAndOnes();
     TestAtAndSetAt();
 
-    //TestNarrowAndClone();
-    //TestTransposeAndClone();
-    //TestNarrowTransposeAndClone();
-    //TestExpandAndClone();
+    TestNarrowAndClone();
+    TestTransposeAndClone();
+    TestNarrowTransposeAndClone();
+    TestExpandAndClone();
 
 	TestAddSubMulDiv();
 
