@@ -1,4 +1,3 @@
-#pragma once
 #include "Tensor.h"
 
 
@@ -547,7 +546,7 @@ void Tensor<T>::Print(bool pretty) const
 template<typename T>
 void Tensor<T>::PrintInfo() const
 {
-    printf("Offset: %llu\n", offset);
+    printf("Offset: %llu\n", (unsigned long long)offset);
     printf("IsContiguous: %s\n", IsContiguous() ? "True" : "False");
     printf("HasValidDenseLayout: %s\n", HasValidDenseLayout() ? "True" : "False");
 	printf("Device: %s\n", device == DeviceType::CPU ? "CPU" : "CUDA");

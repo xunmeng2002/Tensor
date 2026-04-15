@@ -20,7 +20,10 @@ target_link_libraries(${PROJECT_NAME} Tensor)
 # 为 Debug 模式添加 CUDA 调试符号
 target_compile_options(${PROJECT_NAME} PRIVATE  $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CUDA>>:-G -g -O0>)
 
-target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler /wd4819>)
+if(CMAKE_SYSTEM_NAME MATCHES "Windows")
+	target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler /wd4819>)
+elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
+endif()
 
 add_custom_command(
 TARGET ${PROJECT_NAME}

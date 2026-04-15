@@ -1,6 +1,6 @@
 #include "CpuTensor.h"
 #include "CudaTensor.h"
-
+#include <string.h>
 
 template<typename T>
 CpuTensor<T>::CpuTensor() noexcept
@@ -253,7 +253,7 @@ shared_ptr<CpuTensor<T>> CpuTensor<T>::Zeros(const std::vector<int>& shape)
     auto tensor = CreateCpuTensor(shape);
     T* data_ptr = tensor->pdata.get();
     size_t total_bytes = tensor->GetTotalElements() * sizeof(T);
-    std::memset(data_ptr, 0, total_bytes);
+    memset(data_ptr, 0, total_bytes);
     return tensor;
 }
 

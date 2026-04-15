@@ -13,10 +13,15 @@ link_directories(${CUDA_LIB_DIR})
 
 add_library(${PROJECT_NAME} SHARED ${all_file})
 
+
+if(CMAKE_SYSTEM_NAME MATCHES "Windows")
+	target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler /wd4819>)
+    set_target_properties(${PROJECT_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    target_compile_options(Tensor PRIVATE -Wno-ignored-attributes)
+endif()
+
 target_compile_options(${PROJECT_NAME} PRIVATE  $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CUDA>>:-G -g -O0>)
 
-target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler /wd4819>)
-
-set_target_properties(${PROJECT_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 
