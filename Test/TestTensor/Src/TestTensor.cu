@@ -44,7 +44,7 @@ void TestTensor::Test()
     //TestView();
     //TestSqueezeAndUnsqueeze();
     //TestExpand();
-    //TestRepeat();
+    TestRepeat();
     //TestNarrow();
     //TestZerosAndOnes();
     //TestAtAndSetAt();
@@ -55,7 +55,7 @@ void TestTensor::Test()
     //TestExpandAndClone();
 
     //TestAddSubMulDiv();
-    TestTensorConvert();
+    //TestTensorConvert();
 
     printf("End TestTensor for device: %s\n", device == DeviceType::CPU ? "CPU" : "CUDA");
 }
@@ -242,12 +242,35 @@ void TestTensor::TestRepeat()
     printf("\n--------Start TestRepeat--------\n");
     auto tensor1 = PrepareTestTensor2();
 
-    printf("Repeat for {1, 2, 1}\n");
-    auto tensor2 = tensor1->Repeat({ 1, 2, 1});
+    printf("Repeat for dim:0, repeat:2\n");
+    auto tensor2 = tensor1->Repeat(0, 2);
     PrintTensor(tensor2.get());
-    CheckTensor(tensor2.get(), 0, { 2, 4, 3 }, { 12, 3, 1 }, true,
+    CheckTensor(tensor2.get(), 0, { 4, 2, 3 }, { 6, 3, 1 }, true,
+        { 1, 2, 3, 4, 5, 6, 
+        7, 8, 9, 10, 11, 12,
+        1, 2, 3, 4, 5, 6,
+        7, 8, 9, 10, 11, 12 });
+
+    printf("Repeat for dim:1, repeat:2\n");
+    auto tensor3 = tensor1->Repeat(1, 2);
+    PrintTensor(tensor3.get());
+    CheckTensor(tensor3.get(), 0, { 2, 4, 3 }, { 12, 3, 1 }, true,
         { 1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6,
         7, 8, 9, 10, 11, 12, 7, 8, 9, 10, 11, 12 });
+
+    printf("Repeat for dim:2, repeat:2\n");
+    auto tensor4 = tensor1->Repeat(2, 2);
+    PrintTensor(tensor4.get());
+    CheckTensor(tensor4.get(), 0, { 2, 2, 6 }, { 12, 6, 1 }, true,
+        { 1, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 6,
+        7, 8, 9, 7, 8, 9, 10, 11, 12, 10, 11, 12 });
+
+    printf("Repeat for {1, 2, 2}\n");
+    auto tensor5 = tensor1->Repeat({ 1, 2, 2 });
+    PrintTensor(tensor5.get());
+    CheckTensor(tensor5.get(), 0, { 2, 4, 6 }, { 24, 6, 1 }, true,
+        { 1, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 6, 1, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 6,
+        7, 8, 9, 7, 8, 9, 10, 11, 12, 10, 11, 12, 7, 8, 9, 7, 8, 9, 10, 11, 12, 10, 11, 12 });
 
     printf("--------End TestRepeat--------\n\n");
 }

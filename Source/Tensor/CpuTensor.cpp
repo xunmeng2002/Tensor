@@ -379,59 +379,75 @@ void CpuTensor<T>::CopyDataContiguous(T* dest) const
 template<typename T>
 void CpuTensor<T>::CopyDataNoncontiguous(T* dest) const
 {
-    CopyDataRecursive(0, dest, 0);
-}
-template<typename T>
-void CpuTensor<T>::CopyDataRepeat(Tensor<T>* repeatTensor, const std::vector<int>& repeats) const
-{
-    auto destPtr = repeatTensor->GetData().get();
-    std::vector<int> indices(this->shape.size(), 0);
-    this->CopyDataRepeatRecursive(0, repeats, destPtr, indices);
-}
-
-
-template<typename T>
-void CpuTensor<T>::CopyDataRecursive(int dim, T*& dest, size_t currOffset) const
-{
-    if (dim == this->shape.size() - 1)
+    auto totalElements = this->GetTotalElements();
+    for (size_t outIdx = 0; outIdx < totalElements; ++outIdx)
     {
-        T* currData = this->pdata.get() + this->offset + currOffset;
-        for (auto i = 0; i < this->shape[dim]; ++i)
+        size_t srcIdx = this->offset;
+        size_t temp = outIdx;
+        for (int dim = (int)this->shape.size() - 1; dim >= 0; --dim)
         {
-            *dest++ = *currData;
-            currData += this->strides[dim];
+            size_t coord = temp % this->shape[dim];
+            srcIdx += coord * this->strides[dim];
+            temp /= this->shape[dim];
+            if (temp == 0)
+                break;
         }
+        dest[outIdx] = *(this->pdata.get() + srcIdx);
+    }
+}
+template<typename T>
+void CpuTensor<T>::CopyDataRepeat(Tensor<T>* repeatTensor) const
+{
+    auto destData = repeatTensor->GetData().get();
+    auto& outShape = repeatTensor->GetShape();
+
+    auto totalElements = repeatTensor->GetTotalElements();
+    for (size_t outIdx = 0; outIdx < totalElements; ++outIdx)
+    {
+        size_t srcIdx = this->offset;
+        size_t temp = outIdx;
+        for (int dim = (int)this->shape.size() - 1; dim >= 0; --dim)
+        {
+            size_t outCoord = temp % outShape[dim];
+            size_t srcCoord = outCoord % this->shape[dim];
+            srcIdx += srcCoord * this->strides[dim];
+            temp /= outShape[dim];
+            if (temp == 0)
+                break;
+        }
+        destData[outIdx] = *(this->pdata.get() + srcIdx);
+    }
+}
+
+
+template<typename T>
+void CpuTensor<T>::CopyDataRecursive(int dim, T*& dest, size_t baseOffset) const
+{
+    if (dim == this->shape.size())
+    {
+        *dest++ = *(this->pdata.get() + baseOffset);
         return;
     }
     for (int i = 0; i < this->shape[dim]; ++i)
     {
-        size_t newOffset = currOffset + i * this->strides[dim];
+        size_t newOffset = baseOffset + i * this->strides[dim];
         CopyDataRecursive(dim + 1, dest, newOffset);
     }
 }
 template<typename T>
-void CpuTensor<T>::CopyDataRepeatRecursive(int dim, const std::vector<int>& repeats, T*& destData, vector<int>& indices) const
+void CpuTensor<T>::CopyDataRepeatRecursive(int dim, const std::vector<int>& repeats, T*& destData, size_t baseOffset) const
 {
-    if (dim == this->shape.size() - 1)
+    if (dim == this->shape.size())
     {
-        size_t curr_offset = this->offset;
-        for (size_t i = 0; i < indices.size(); ++i)
-        {
-            curr_offset += indices[i] * this->strides[i];
-        }
-        auto dataStart = this->pdata.get() + curr_offset;
-        for (auto j = 0; j < this->shape[dim]; ++j)
-        {
-            *destData++ = *(dataStart + j * this->strides[dim]);
-        }
+        *destData++ = *(this->pdata.get() + baseOffset);
         return;
     }
     for (int i = 0; i < repeats[dim]; ++i)
     {
         for (int j = 0; j < this->shape[dim]; ++j)
         {
-            indices[dim] = j;
-            CopyDataRepeatRecursive(dim + 1, repeats, destData, indices);
+            size_t newOffset = baseOffset + j * this->strides[dim];
+            CopyDataRepeatRecursive(dim + 1, repeats, destData, newOffset);
         }
     }
 }

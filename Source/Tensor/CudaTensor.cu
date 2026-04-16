@@ -426,7 +426,7 @@ void CudaTensor<T>::CopyDataNoncontiguous(T* dest) const
     CopyFromNoncontiguousKernel<<<gridSize, DefaultBlockSize>>>(this->pdata.get() + this->offset, dest, (int*)dShape.get(), (int*)dStrides.get(), dims, elements);
 }
 template<typename T>
-void CudaTensor<T>::CopyDataRepeat(Tensor<T>* repeatTensor, const std::vector<int>& repeats) const
+void CudaTensor<T>::CopyDataRepeat(Tensor<T>* repeatTensor) const
 {
     auto elements = repeatTensor->GetTotalElements();
     int dims = this->shape.size();

@@ -95,6 +95,7 @@ public:
     const std::vector<int> GetShape() const;
     const std::vector<int> GetStrides() const;
     size_t GetTotalElements() const;
+    static size_t GetTotalElements(const std::vector<int>& shape);
     bool HasValidDenseLayout() const;
     virtual bool HasZero() const = 0;
     bool IsContiguous() const;
@@ -123,10 +124,10 @@ protected:
     shared_ptr<Tensor> CloneDenseView() const;
     virtual void CopyDataContiguous(T* dest) const = 0;
     virtual void CopyDataNoncontiguous(T* dest) const = 0;
-    virtual void CopyDataRepeat(Tensor<T>* repeatTensor, const std::vector<int>& repeats) const = 0;
+    virtual void CopyDataRepeat(Tensor<T>* repeatTensor) const = 0;
     std::vector<int> LinearToIndices(size_t linearIndex) const;
-    static void PrintCompact(int dim, std::vector<int>& indices, const std::shared_ptr<T>& pdata, const size_t& offset, const std::vector<int>& shape, const std::vector<int>& strides);
-    static void PrintPretty(int dim, std::vector<int>& indices, const std::shared_ptr<T>& pdata, const size_t& offset, const std::vector<int>& shape, const std::vector<int>& strides);
+    static void PrintCompactRecursive(int dim, T* data, const std::vector<int>& shape, const std::vector<int>& strides);
+    static void PrintPrettyRecursive(int dim, T* data, const std::vector<int>& shape, const std::vector<int>& strides);
     bool ValidShape(vector<int>& newShape) const;
     shared_ptr<Tensor> ViewImpl(const std::vector<int>& newShape) const;
 

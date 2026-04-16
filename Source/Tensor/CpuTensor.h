@@ -63,11 +63,11 @@ public:
 protected:
     virtual void CopyDataContiguous(T* dest) const override;
     virtual void CopyDataNoncontiguous(T* dest) const override;
-    virtual void CopyDataRepeat(Tensor<T>* repeatTensor, const std::vector<int>& repeats) const;
+    virtual void CopyDataRepeat(Tensor<T>* repeatTensor) const;
     
 private:
     void CopyDataRecursive(int dim, T*& dest, size_t currOffset) const;
-    void CopyDataRepeatRecursive(int dim, const std::vector<int>& repeats, T*& destData, vector<int>& indices) const;
+    void CopyDataRepeatRecursive(int dim, const std::vector<int>& repeats, T*& destData, size_t currOffset) const;
     void FillValue(T value);
     void FillValueWithStep(T start, T step);
 

@@ -384,6 +384,16 @@ size_t Tensor<T>::GetTotalElements() const
     return total;
 }
 template<typename T>
+size_t Tensor<T>::GetTotalElements(const std::vector<int>& shape)
+{
+    size_t total = 1;
+    for (int dimSize : shape)
+    {
+        total *= dimSize;
+    }
+    return total;
+}
+template<typename T>
 bool Tensor<T>::HasValidDenseLayout() const
 {
     if (shape.empty() || !pdata)
@@ -537,9 +547,13 @@ void Tensor<T>::Print(bool pretty) const
     {
         std::vector<int> indices(shape.size(), 0);
         if (pretty)
-            PrintPretty(0, indices, pdata, offset, shape, strides);
+        {
+            PrintPrettyRecursive(0, pdata.get() + offset, shape, strides);
+        }
         else
-            PrintCompact(0, indices, pdata, offset, shape, strides);
+        {
+            PrintCompactRecursive(0, pdata.get() + offset, shape, strides);
+        }
         std::cout << std::endl;
     }
 }
@@ -606,7 +620,7 @@ shared_ptr<Tensor<T>> Tensor<T>::Repeat(const std::vector<int>& repeats) const
         newShape[i] = shape[i] * repeats[i];
     }
     auto result = Create(newShape);
-	CopyDataRepeat(result.get(), repeats);
+	CopyDataRepeat(result.get());
     return result;
 }
 template<typename T>
@@ -847,74 +861,52 @@ std::vector<int> Tensor<T>::LinearToIndices(size_t linearIndex) const
     return indices;
 }
 template<typename T>
-void Tensor<T>::PrintCompact(int dim, std::vector<int>& indices, const std::shared_ptr<T>& pdata, const size_t& offset, const std::vector<int>& shape, const std::vector<int>& strides)
+void Tensor<T>::PrintCompactRecursive(int dim, T* data, const std::vector<int>& shape, const std::vector<int>& strides)
 {
     std::cout << "[";
-
     if (dim == shape.size() - 1)
     {
         for (int i = 0; i < shape[dim]; ++i)
         {
-            indices[dim] = i;
-            size_t currOffset = CalculateOffset(indices, offset, shape, strides);
-            std::cout << *(pdata.get() + currOffset);
-            if (i < shape[dim] - 1)
+            if (i > 0)
                 std::cout << ", ";
+            std::cout << *(data + i * strides[dim]);
         }
     }
     else
     {
         for (int i = 0; i < shape[dim]; ++i)
         {
-            indices[dim] = i;
-            PrintCompact(dim + 1, indices, pdata, offset, shape, strides);
-            if (i < shape[dim] - 1)
+            if (i > 0)
                 std::cout << ", ";
+            PrintCompactRecursive(dim + 1, data + i * strides[dim], shape, strides);
         }
     }
     std::cout << "]";
 }
 template<typename T>
-void Tensor<T>::PrintPretty(int dim, std::vector<int>& indices, const std::shared_ptr<T>& pdata, const size_t& offset, const std::vector<int>& shape, const std::vector<int>& strides)
+void Tensor<T>::PrintPrettyRecursive(int dim, T* data, const std::vector<int>& shape, const std::vector<int>& strides)
 {
     std::cout << "[";
     if (dim == shape.size() - 1)
     {
         for (int i = 0; i < shape[dim]; ++i)
         {
-            indices[dim] = i;
             if (i > 0)
-            {
                 std::cout << ", ";
-                if (shape[dim] > 20 && i % 20 == 0)
-                {
-                    std::cout << "\n";
-                    for (int j = 0; j < dim + 1; ++j)
-                        std::cout << " ";
-                }
-            }
-            size_t currOffset = CalculateOffset(indices, offset, shape, strides);
-            std::cout << *(pdata.get() + currOffset);
+            std::cout << *(data + i * strides[dim]);
         }
     }
     else
     {
         for (int i = 0; i < shape[dim]; ++i)
         {
-            indices[dim] = i;
             if (i > 0)
-            {
-                std::cout << "\n";
-                for (int j = 0; j < dim + 1; ++j)
-                    std::cout << " ";
-            }
-            PrintPretty(dim + 1, indices, pdata, offset, shape, strides);
-            if (i < shape[dim] - 1)
-            {
-                std::cout << ",";
-            }
+                std::cout << ",\n" << std::string(dim + 1, ' ');
+            PrintPrettyRecursive(dim + 1, data + i * strides[dim], shape, strides);
         }
     }
+
     std::cout << "]";
 }
 template<typename T>

@@ -62,7 +62,7 @@ public:
 protected:
     virtual void CopyDataContiguous(T* dest) const override;
     virtual void CopyDataNoncontiguous(T* dest) const override;
-    virtual void CopyDataRepeat(Tensor<T>* repeatTensor, const std::vector<int>& repeats) const override;
+    virtual void CopyDataRepeat(Tensor<T>* repeatTensor) const override;
 
 private:
     void FillValue(T value);
