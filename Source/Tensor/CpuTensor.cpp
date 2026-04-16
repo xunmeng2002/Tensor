@@ -381,10 +381,10 @@ void CpuTensor<T>::CopyDataNoncontiguous(T* dest) const
 {
     auto totalElements = this->GetTotalElements();
     auto src = this->pdata.get() + this->offset;
-    for (size_t outIdx = 0; outIdx < totalElements; ++outIdx)
+    for (size_t destIndex = 0; destIndex < totalElements; ++destIndex)
     {
         size_t srcIdx = 0;
-        size_t temp = outIdx;
+        size_t temp = destIndex;
         for (int dim = (int)this->shape.size() - 1; dim >= 0; --dim)
         {
             size_t coord = temp % this->shape[dim];
@@ -393,31 +393,31 @@ void CpuTensor<T>::CopyDataNoncontiguous(T* dest) const
             if (temp == 0)
                 break;
         }
-        dest[outIdx] = *(src + srcIdx);
+        dest[destIndex] = *(src + srcIdx);
     }
 }
 template<typename T>
 void CpuTensor<T>::CopyDataRepeat(Tensor<T>* repeatTensor) const
 {
     auto destData = repeatTensor->GetData().get();
-    auto& outShape = repeatTensor->GetShape();
+    auto& destShape = repeatTensor->GetShape();
 
     auto totalElements = repeatTensor->GetTotalElements();
     auto src = this->pdata.get() + this->offset;
-    for (size_t outIdx = 0; outIdx < totalElements; ++outIdx)
+    for (size_t destIndex = 0; destIndex < totalElements; ++destIndex)
     {
         size_t srcIdx = 0;
-        size_t temp = outIdx;
+        size_t temp = destIndex;
         for (int dim = (int)this->shape.size() - 1; dim >= 0; --dim)
         {
-            size_t outCoord = temp % outShape[dim];
+            size_t outCoord = temp % destShape[dim];
             size_t srcCoord = outCoord % this->shape[dim];
             srcIdx += srcCoord * this->strides[dim];
-            temp /= outShape[dim];
+            temp /= destShape[dim];
             if (temp == 0)
                 break;
         }
-        destData[outIdx] = *(src + srcIdx);
+        destData[destIndex] = *(src + srcIdx);
     }
 }
 
