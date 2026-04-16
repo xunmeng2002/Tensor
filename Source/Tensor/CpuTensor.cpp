@@ -380,9 +380,10 @@ template<typename T>
 void CpuTensor<T>::CopyDataNoncontiguous(T* dest) const
 {
     auto totalElements = this->GetTotalElements();
+    auto src = this->pdata.get() + this->offset;
     for (size_t outIdx = 0; outIdx < totalElements; ++outIdx)
     {
-        size_t srcIdx = this->offset;
+        size_t srcIdx = 0;
         size_t temp = outIdx;
         for (int dim = (int)this->shape.size() - 1; dim >= 0; --dim)
         {
@@ -392,7 +393,7 @@ void CpuTensor<T>::CopyDataNoncontiguous(T* dest) const
             if (temp == 0)
                 break;
         }
-        dest[outIdx] = *(this->pdata.get() + srcIdx);
+        dest[outIdx] = *(src + srcIdx);
     }
 }
 template<typename T>
@@ -402,9 +403,10 @@ void CpuTensor<T>::CopyDataRepeat(Tensor<T>* repeatTensor) const
     auto& outShape = repeatTensor->GetShape();
 
     auto totalElements = repeatTensor->GetTotalElements();
+    auto src = this->pdata.get() + this->offset;
     for (size_t outIdx = 0; outIdx < totalElements; ++outIdx)
     {
-        size_t srcIdx = this->offset;
+        size_t srcIdx = 0;
         size_t temp = outIdx;
         for (int dim = (int)this->shape.size() - 1; dim >= 0; --dim)
         {
@@ -415,7 +417,7 @@ void CpuTensor<T>::CopyDataRepeat(Tensor<T>* repeatTensor) const
             if (temp == 0)
                 break;
         }
-        destData[outIdx] = *(this->pdata.get() + srcIdx);
+        destData[outIdx] = *(src + srcIdx);
     }
 }
 
