@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <string>
 #include <iostream>
 #include <vector>
@@ -12,7 +12,7 @@
 using namespace std;
 
 enum class DeviceType : int { CPU, CUDA };
-// ÔËËãÀàĞÍÃ¶¾Ù
+// è¿ç®—ç±»å‹æšä¸¾
 enum class ElementwiseOp { ADD = 0, SUB, MUL, DIV };
 enum class ScalarOp { ADD = 0, SUB, MUL, DIV };
 

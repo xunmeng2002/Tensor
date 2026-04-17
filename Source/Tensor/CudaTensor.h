@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Tensor.h"
 #include <functional>
 #include <memory>

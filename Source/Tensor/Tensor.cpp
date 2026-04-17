@@ -1,4 +1,4 @@
-#include "Tensor.h"
+ï»¿#include "Tensor.h"
 
 
 using namespace std;
@@ -289,7 +289,7 @@ shared_ptr<Tensor<T>> Tensor<T>::Expand(const std::vector<int>& newShape) const
         printf("New shape must have at least as many dimensions\n");
         return nullptr;
     }
-    // ¼ì²éÊÇ·ñ¿ÉÀ©Õ¹
+    // æ£€æŸ¥æ˜¯å¦å¯æ‰©å±•
     int size_diff = (int)newShape.size() - (int)shape.size();
     for (auto i = 0; i < (int)shape.size(); ++i)
     {
@@ -642,7 +642,7 @@ shared_ptr<Tensor<T>> Tensor<T>::Squeeze() const
             result->strides.push_back(strides[i]);
         }
     }
-    // Èç¹ûËùÓĞÎ¬¶È¶¼ÊÇ1£¬Ôò·µ»ØÒ»¸ö0-dim tensor£¨±êÁ¿£©
+    // å¦‚æœæ‰€æœ‰ç»´åº¦éƒ½æ˜¯1ï¼Œåˆ™è¿”å›ä¸€ä¸ª0-dim tensorï¼ˆæ ‡é‡ï¼‰
     if (result->shape.empty())
     {
         result->shape = { 1 };
@@ -729,7 +729,7 @@ shared_ptr<Tensor<T>> Tensor<T>::Unsqueeze(int dim) const
 {
     if (dim < 0)
     {
-        dim += (int)shape.size() + 1;  // +1 ÔÊĞíÔÚ×îºó²åÈë
+        dim += (int)shape.size() + 1;  // +1 å…è®¸åœ¨æœ€åæ’å…¥
     }
     if (dim < 0 || dim > static_cast<int>(shape.size()))
     {
@@ -741,12 +741,12 @@ shared_ptr<Tensor<T>> Tensor<T>::Unsqueeze(int dim) const
     result->offset = this->offset;
     result->shape = this->shape;
     result->strides = this->strides;
-    // ÔÚÖ¸¶¨Î»ÖÃ²åÈëÎ¬¶È1
+    // åœ¨æŒ‡å®šä½ç½®æ’å…¥ç»´åº¦1
     result->shape.insert(result->shape.begin() + dim, 1);
-    // ¼ÆËãĞÂÎ¬¶ÈµÄ²½³¤
+    // è®¡ç®—æ–°ç»´åº¦çš„æ­¥é•¿
     if (dim == static_cast<int>(shape.size()))
     {
-        // ÔÚ×îºó²åÈë£¬²½³¤Îª×îºóÒ»¸öÔªËØµÄ²½³¤
+        // åœ¨æœ€åæ’å…¥ï¼Œæ­¥é•¿ä¸ºæœ€åä¸€ä¸ªå…ƒç´ çš„æ­¥é•¿
         if (shape.empty())
         {
             result->strides.insert(result->strides.begin() + dim, 1);
@@ -758,16 +758,16 @@ shared_ptr<Tensor<T>> Tensor<T>::Unsqueeze(int dim) const
     }
     else
     {
-        // ÔÚÖĞ¼ä»ò¿ªÍ·²åÈë£¬²½³¤Îªµ±Ç°Î¬¶ÈµÄ²½³¤
+        // åœ¨ä¸­é—´æˆ–å¼€å¤´æ’å…¥ï¼Œæ­¥é•¿ä¸ºå½“å‰ç»´åº¦çš„æ­¥é•¿
         int new_stride;
         if (dim == 0)
         {
-            // ÔÚ×îÇ°Ãæ²åÈë£¬²½³¤ÎªµÚÒ»¸öÎ¬¶ÈµÄ²½³¤³ËÒÔµÚÒ»¸öÎ¬¶ÈµÄ´óĞ¡
+            // åœ¨æœ€å‰é¢æ’å…¥ï¼Œæ­¥é•¿ä¸ºç¬¬ä¸€ä¸ªç»´åº¦çš„æ­¥é•¿ä¹˜ä»¥ç¬¬ä¸€ä¸ªç»´åº¦çš„å¤§å°
             new_stride = shape.empty() ? 1 : strides[0] * shape[0];
         }
         else
         {
-            // ÔÚÖĞ¼ä²åÈë£¬²½³¤ÎªÇ°Ò»¸öÎ¬¶ÈµÄ²½³¤
+            // åœ¨ä¸­é—´æ’å…¥ï¼Œæ­¥é•¿ä¸ºå‰ä¸€ä¸ªç»´åº¦çš„æ­¥é•¿
             new_stride = strides[dim - 1];
         }
         result->strides.insert(result->strides.begin() + dim, new_stride);

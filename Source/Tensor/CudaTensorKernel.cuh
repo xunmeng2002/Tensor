@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include "Tensor.h"
@@ -17,7 +17,7 @@ std::shared_ptr<uint8_t> CopyVectorToDevice(const vector<T>& values)
     CUDA_CHECK(cudaMemcpyAsync(dValues.get(), values.data(), values.size() * sizeof(T), cudaMemcpyHostToDevice, nullptr));
     return dValues;
 }
-// ÔªËØ¼¶ÔËËãºËº¯Êı
+// å…ƒç´ çº§è¿ç®—æ ¸å‡½æ•°
 template<typename T>
 __global__ void ElementwiseKernel(const T * left, const T * right, T * result, size_t elements, int op)
 {
@@ -33,7 +33,7 @@ __global__ void ElementwiseKernel(const T * left, const T * right, T * result, s
     case 3: result[idx] = left[idx] / right[idx]; break;  // DIV
     }
 }
-// Ô­µØÔËËãºËº¯Êı
+// åŸåœ°è¿ç®—æ ¸å‡½æ•°
 template<typename T>
 __global__ void ElementwiseInplaceKernel(T* result, const T* right, size_t elements, int op)
 {
@@ -49,7 +49,7 @@ __global__ void ElementwiseInplaceKernel(T* result, const T* right, size_t eleme
     case 3: result[idx] /= right[idx]; break;
     }
 }
-// ±êÁ¿ÔËËãºËº¯Êı
+// æ ‡é‡è¿ç®—æ ¸å‡½æ•°
 template<typename T>
 __global__ void ScalarKernel(const T* left, T* result, size_t elements, T scalar, int op)
 {
@@ -65,7 +65,7 @@ __global__ void ScalarKernel(const T* left, T* result, size_t elements, T scalar
     case 3: result[idx] = left[idx] / scalar; break;
     }
 }
-// ±êÁ¿Ô­µØÔËËãºËº¯Êı
+// æ ‡é‡åŸåœ°è¿ç®—æ ¸å‡½æ•°
 template<typename T>
 __global__ void ScalarInplaceKernel(T* result, size_t elements, T scalar, int op)
 {
@@ -81,7 +81,7 @@ __global__ void ScalarInplaceKernel(T* result, size_t elements, T scalar, int op
     case 3: result[idx] /= scalar; break;
     }
 }
-// ¼ì²éÊÇ·ñ°üº¬ÁãµÄºËº¯Êı£¬×¢ÒâÓÉHost¶Ôresult³õÊ¼»¯Îªfalse
+// æ£€æŸ¥æ˜¯å¦åŒ…å«é›¶çš„æ ¸å‡½æ•°ï¼Œæ³¨æ„ç”±Hostå¯¹resultåˆå§‹åŒ–ä¸ºfalse
 template<typename T>
 __global__ void HasZeroKernel(const T* data, size_t elements, bool* result)
 {
@@ -100,7 +100,7 @@ __global__ void HasZeroKernel(const T* data, size_t elements, bool* result)
         *result = true;
     }
 }
-// ¼ì²éÊÇ·ñÏàµÈµÄºËº¯Êı£¬×¢ÒâÓÉHost¶Ôresult²ÎÊı³õÊ¼»¯Îªtrue
+// æ£€æŸ¥æ˜¯å¦ç›¸ç­‰çš„æ ¸å‡½æ•°ï¼Œæ³¨æ„ç”±Hostå¯¹resultå‚æ•°åˆå§‹åŒ–ä¸ºtrue
 template<typename T>
 __global__ void CheckEqualKernel(const T* tensorData, const T* checkData, const int* shape, const int* strides, const int dims, size_t elements, bool* result)
 {
@@ -130,7 +130,7 @@ __global__ void CheckEqualKernel(const T* tensorData, const T* checkData, const 
         *result = false;
     }
 }
-// Ìî³äºËº¯Êı
+// å¡«å……æ ¸å‡½æ•°
 template<typename T>
 __global__ void FillKernel(T* data, size_t elements, T value)
 {
@@ -139,7 +139,7 @@ __global__ void FillKernel(T* data, size_t elements, T value)
         data[idx] = value;
     }
 }
-// µÈ²îÊıÁĞÌî³äºËº¯Êı
+// ç­‰å·®æ•°åˆ—å¡«å……æ ¸å‡½æ•°
 template<typename T>
 __global__ void ArrangeKernel(T* data, size_t elements, T start, T step)
 {

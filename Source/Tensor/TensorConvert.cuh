@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "CpuTensor.h"
 #include "CudaTensor.h"
 #include "CudaTensorKernel.cuh"
