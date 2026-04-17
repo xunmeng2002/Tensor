@@ -1,213 +1,213 @@
-#pragma once
-#include <cuda_runtime.h>
-#include <device_launch_parameters.h>
-#include "Tensor.h"
-
-using namespace std;
-
-#define CUDA_CHECK(error) CudaCheck(error, __FILE__, __LINE__);
-void CudaCheck(cudaError_t error, const char* file, int line);
-void CudaFreeDirect(void* ptr);
-std::shared_ptr<uint8_t> AllocateBytes(size_t bytes);
-
-template<typename T>
-std::shared_ptr<uint8_t> CopyVectorToDevice(const vector<T>& values)
-{
-    auto dValues = AllocateBytes(values.size() * sizeof(T));
-    CUDA_CHECK(cudaMemcpyAsync(dValues.get(), values.data(), values.size() * sizeof(T), cudaMemcpyHostToDevice, nullptr));
-    return dValues;
-}
-// ÔªËØ¼¶ÔËËãºËº¯Êı
-template<typename T>
-__global__ void ElementwiseKernel(const T * left, const T * right, T * result, size_t elements, int op)
-{
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= elements)
-        return;
-
-    switch (op)
-    {
-    case 0: result[idx] = left[idx] + right[idx]; break;  // ADD
-    case 1: result[idx] = left[idx] - right[idx]; break;  // SUB
-    case 2: result[idx] = left[idx] * right[idx]; break;  // MUL
-    case 3: result[idx] = left[idx] / right[idx]; break;  // DIV
-    }
-}
-// Ô­µØÔËËãºËº¯Êı
-template<typename T>
-__global__ void ElementwiseInplaceKernel(T* result, const T* right, size_t elements, int op)
-{
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= elements)
-        return;
-
-    switch (op)
-    {
-    case 0: result[idx] += right[idx]; break;
-    case 1: result[idx] -= right[idx]; break;
-    case 2: result[idx] *= right[idx]; break;
-    case 3: result[idx] /= right[idx]; break;
-    }
-}
-// ±êÁ¿ÔËËãºËº¯Êı
-template<typename T>
-__global__ void ScalarKernel(const T* left, T* result, size_t elements, T scalar, int op)
-{
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= elements)
-        return;
-
-    switch (op)
-    {
-    case 0: result[idx] = left[idx] + scalar; break;
-    case 1: result[idx] = left[idx] - scalar; break;
-    case 2: result[idx] = left[idx] * scalar; break;
-    case 3: result[idx] = left[idx] / scalar; break;
-    }
-}
-// ±êÁ¿Ô­µØÔËËãºËº¯Êı
-template<typename T>
-__global__ void ScalarInplaceKernel(T* result, size_t elements, T scalar, int op)
-{
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= elements)
-        return;
-
-    switch (op)
-    {
-    case 0: result[idx] += scalar; break;
-    case 1: result[idx] -= scalar; break;
-    case 2: result[idx] *= scalar; break;
-    case 3: result[idx] /= scalar; break;
-    }
-}
-// ¼ì²éÊÇ·ñ°üº¬ÁãµÄºËº¯Êı£¬×¢ÒâÓÉHost¶Ôresult³õÊ¼»¯Îªfalse
-template<typename T>
-__global__ void HasZeroKernel(const T* data, size_t elements, bool* result)
-{
-    __shared__ bool hasZero;
-    if (threadIdx.x == 0)
-        hasZero = false;
-    __syncthreads();
-
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < elements && data[idx] == T(0)) {
-        hasZero = true;
-    }
-    __syncthreads();
-
-    if (threadIdx.x == 0 && hasZero) {
-        *result = true;
-    }
-}
-// ¼ì²éÊÇ·ñÏàµÈµÄºËº¯Êı£¬×¢ÒâÓÉHost¶Ôresult²ÎÊı³õÊ¼»¯Îªtrue
-template<typename T>
-__global__ void CheckEqualKernel(const T* tensorData, const T* checkData, const int* shape, const int* strides, const int dims, size_t elements, bool* result)
-{
-    __shared__ bool equal;
-    if (threadIdx.x == 0)
-        equal = true;
-    __syncthreads();
-
-    size_t index = blockIdx.x * blockDim.x + threadIdx.x;
-    if (index < elements)
-    {
-        int64_t remaining = index;
-        int64_t realOffset = 0;
-        for (int64_t d = dims - 1; d >= 0; --d)
-        {
-            int64_t coord = remaining % shape[d];
-            remaining /= shape[d];
-            realOffset += coord * strides[d];
-        }
-        if (tensorData[realOffset] != checkData[index])
-            equal = false;
-    }
-    __syncthreads();
-
-    if (threadIdx.x == 0 && !equal)
-    {
-        *result = false;
-    }
-}
-// Ìî³äºËº¯Êı
-template<typename T>
-__global__ void FillKernel(T* data, size_t elements, T value)
-{
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < elements) {
-        data[idx] = value;
-    }
-}
-// µÈ²îÊıÁĞÌî³äºËº¯Êı
-template<typename T>
-__global__ void ArrangeKernel(T* data, size_t elements, T start, T step)
-{
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < elements) {
-        data[idx] = start + static_cast<T>(idx) * step;
-    }
-}
-
-template<typename T>
-__global__ void CopyFromNoncontiguousKernel(const T* __restrict__ src, T* __restrict__ dst,
-    const int* __restrict__ shape, const int* __restrict__ strides, const int dims, const size_t elements)
-{
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= elements)
-        return;
-    int linearIndex = idx;
-    size_t srcOffset = 0;
-    for (int d = dims - 1; d >= 0; --d)
-    {
-        int coord = linearIndex % shape[d];
-        linearIndex /= shape[d];
-        srcOffset += coord * strides[d];
-    }
-    dst[idx] = src[srcOffset];
-}
-
-template<typename Src, typename Dest>
-__global__ void CopyDataToDestTypeContiguousKernel(const Src* __restrict__ src, Dest* __restrict__ dst, const int* __restrict__ shape, const int* __restrict__ strides, const int dims, const size_t elements)
-{
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= elements)
-        return;
-    dst[idx] = (Dest)src[idx];
-}
-template<typename Src, typename Dest>
-__global__ void CopyDataToDestTypeNoncontiguousKernel(const Src* __restrict__ src, Dest* __restrict__ dst, const int* __restrict__ shape, const int* __restrict__ strides, const int dims, const size_t elements)
-{
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= elements)
-        return;
-    int linearIndex = idx;
-    size_t srcOffset = 0;
-    for (int d = dims - 1; d >= 0; --d)
-    {
-        int coord = linearIndex % shape[d];
-        linearIndex /= shape[d];
-        srcOffset += coord * strides[d];
-    }
-    dst[idx] = (Dest)src[srcOffset];
-}
-
-template<typename T>
-__global__ void CopyDataRepeatKernel(const T* srcData, T* destData, const int* srcShape, const int* srcStrides, const int* destShape, int dims, int64_t elements)
-{
-    int64_t index = blockIdx.x * blockDim.x + threadIdx.x;
-    if (index >= elements)
-        return;
-	int64_t remaining = index;
-    int64_t srcIndex = 0;
-    for (int64_t d = dims-1; d >= 0; --d)
-    {
-		int64_t destCoord = remaining % destShape[d];
-		remaining /= destShape[d];
-		int64_t srcCoord = destCoord % srcShape[d];
-        srcIndex += srcCoord * srcStrides[d];
-    }
-    destData[index] = srcData[srcIndex];
-}
-
-
+ï»¿#pragma once
+#include <cuda_runtime.h>
+#include <device_launch_parameters.h>
+#include "Tensor.h"
+
+using namespace std;
+
+#define CUDA_CHECK(error) CudaCheck(error, __FILE__, __LINE__);
+void CudaCheck(cudaError_t error, const char* file, int line);
+void CudaFreeDirect(void* ptr);
+std::shared_ptr<uint8_t> AllocateBytes(size_t bytes);
+
+template<typename T>
+std::shared_ptr<uint8_t> CopyVectorToDevice(const vector<T>& values)
+{
+    auto dValues = AllocateBytes(values.size() * sizeof(T));
+    CUDA_CHECK(cudaMemcpyAsync(dValues.get(), values.data(), values.size() * sizeof(T), cudaMemcpyHostToDevice, nullptr));
+    return dValues;
+}
+// å…ƒç´ çº§è¿ç®—æ ¸å‡½æ•°
+template<typename T>
+__global__ void ElementwiseKernel(const T * left, const T * right, T * result, size_t elements, int op)
+{
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= elements)
+        return;
+
+    switch (op)
+    {
+    case 0: result[idx] = left[idx] + right[idx]; break;  // ADD
+    case 1: result[idx] = left[idx] - right[idx]; break;  // SUB
+    case 2: result[idx] = left[idx] * right[idx]; break;  // MUL
+    case 3: result[idx] = left[idx] / right[idx]; break;  // DIV
+    }
+}
+// åŸåœ°è¿ç®—æ ¸å‡½æ•°
+template<typename T>
+__global__ void ElementwiseInplaceKernel(T* result, const T* right, size_t elements, int op)
+{
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= elements)
+        return;
+
+    switch (op)
+    {
+    case 0: result[idx] += right[idx]; break;
+    case 1: result[idx] -= right[idx]; break;
+    case 2: result[idx] *= right[idx]; break;
+    case 3: result[idx] /= right[idx]; break;
+    }
+}
+// æ ‡é‡è¿ç®—æ ¸å‡½æ•°
+template<typename T>
+__global__ void ScalarKernel(const T* left, T* result, size_t elements, T scalar, int op)
+{
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= elements)
+        return;
+
+    switch (op)
+    {
+    case 0: result[idx] = left[idx] + scalar; break;
+    case 1: result[idx] = left[idx] - scalar; break;
+    case 2: result[idx] = left[idx] * scalar; break;
+    case 3: result[idx] = left[idx] / scalar; break;
+    }
+}
+// æ ‡é‡åŸåœ°è¿ç®—æ ¸å‡½æ•°
+template<typename T>
+__global__ void ScalarInplaceKernel(T* result, size_t elements, T scalar, int op)
+{
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= elements)
+        return;
+
+    switch (op)
+    {
+    case 0: result[idx] += scalar; break;
+    case 1: result[idx] -= scalar; break;
+    case 2: result[idx] *= scalar; break;
+    case 3: result[idx] /= scalar; break;
+    }
+}
+// æ£€æŸ¥æ˜¯å¦åŒ…å«é›¶çš„æ ¸å‡½æ•°ï¼Œæ³¨æ„ç”±Hostå¯¹resultåˆå§‹åŒ–ä¸ºfalse
+template<typename T>
+__global__ void HasZeroKernel(const T* data, size_t elements, bool* result)
+{
+    __shared__ bool hasZero;
+    if (threadIdx.x == 0)
+        hasZero = false;
+    __syncthreads();
+
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < elements && data[idx] == T(0)) {
+        hasZero = true;
+    }
+    __syncthreads();
+
+    if (threadIdx.x == 0 && hasZero) {
+        *result = true;
+    }
+}
+// æ£€æŸ¥æ˜¯å¦ç›¸ç­‰çš„æ ¸å‡½æ•°ï¼Œæ³¨æ„ç”±Hostå¯¹resultå‚æ•°åˆå§‹åŒ–ä¸ºtrue
+template<typename T>
+__global__ void CheckEqualKernel(const T* tensorData, const T* checkData, const int* shape, const int* strides, const int dims, size_t elements, bool* result)
+{
+    __shared__ bool equal;
+    if (threadIdx.x == 0)
+        equal = true;
+    __syncthreads();
+
+    size_t index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index < elements)
+    {
+        int64_t remaining = index;
+        int64_t realOffset = 0;
+        for (int64_t d = dims - 1; d >= 0; --d)
+        {
+            int64_t coord = remaining % shape[d];
+            remaining /= shape[d];
+            realOffset += coord * strides[d];
+        }
+        if (tensorData[realOffset] != checkData[index])
+            equal = false;
+    }
+    __syncthreads();
+
+    if (threadIdx.x == 0 && !equal)
+    {
+        *result = false;
+    }
+}
+// å¡«å……æ ¸å‡½æ•°
+template<typename T>
+__global__ void FillKernel(T* data, size_t elements, T value)
+{
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < elements) {
+        data[idx] = value;
+    }
+}
+// ç­‰å·®æ•°åˆ—å¡«å……æ ¸å‡½æ•°
+template<typename T>
+__global__ void ArrangeKernel(T* data, size_t elements, T start, T step)
+{
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < elements) {
+        data[idx] = start + static_cast<T>(idx) * step;
+    }
+}
+
+template<typename T>
+__global__ void CopyFromNoncontiguousKernel(const T* __restrict__ src, T* __restrict__ dst,
+    const int* __restrict__ shape, const int* __restrict__ strides, const int dims, const size_t elements)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= elements)
+        return;
+    int linearIndex = idx;
+    size_t srcOffset = 0;
+    for (int d = dims - 1; d >= 0; --d)
+    {
+        int coord = linearIndex % shape[d];
+        linearIndex /= shape[d];
+        srcOffset += coord * strides[d];
+    }
+    dst[idx] = src[srcOffset];
+}
+
+template<typename Src, typename Dest>
+__global__ void CopyDataToDestTypeContiguousKernel(const Src* __restrict__ src, Dest* __restrict__ dst, const int* __restrict__ shape, const int* __restrict__ strides, const int dims, const size_t elements)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= elements)
+        return;
+    dst[idx] = (Dest)src[idx];
+}
+template<typename Src, typename Dest>
+__global__ void CopyDataToDestTypeNoncontiguousKernel(const Src* __restrict__ src, Dest* __restrict__ dst, const int* __restrict__ shape, const int* __restrict__ strides, const int dims, const size_t elements)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= elements)
+        return;
+    int linearIndex = idx;
+    size_t srcOffset = 0;
+    for (int d = dims - 1; d >= 0; --d)
+    {
+        int coord = linearIndex % shape[d];
+        linearIndex /= shape[d];
+        srcOffset += coord * strides[d];
+    }
+    dst[idx] = (Dest)src[srcOffset];
+}
+
+template<typename T>
+__global__ void CopyDataRepeatKernel(const T* srcData, T* destData, const int* srcShape, const int* srcStrides, const int* destShape, int dims, int64_t elements)
+{
+    int64_t index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= elements)
+        return;
+	int64_t remaining = index;
+    int64_t srcIndex = 0;
+    for (int64_t d = dims-1; d >= 0; --d)
+    {
+		int64_t destCoord = remaining % destShape[d];
+		remaining /= destShape[d];
+		int64_t srcCoord = destCoord % srcShape[d];
+        srcIndex += srcCoord * srcStrides[d];
+    }
+    destData[index] = srcData[srcIndex];
+}
+
+
