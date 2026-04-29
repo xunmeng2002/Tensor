@@ -19,6 +19,9 @@ stages:
         displayName: GCC 构建
         gccVersion: '13.4'
         commands:
+          - apt-get install -y wget
+          - wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+          - dpkg -i cuda-keyring_1.1-1_all.deb
           - apt-get update
           - apt-get install cuda-toolkit-12-0
           - nvcc --version
