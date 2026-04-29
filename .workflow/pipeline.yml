@@ -20,7 +20,7 @@ stages:
         gccVersion: '13.4'
         commands:
           - apt-get update
-          - apt-get install -y cuda-toolkit-13-0
+          - apt-get install cuda-toolkit-13
           - nvcc --version
           - '# 新建build目录，切换到build目录'
           - 'mkdir build && cd build '
