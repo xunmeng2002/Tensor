@@ -1,33 +1,61 @@
 version: '1.0'
 name: pipeline-20260429
 displayName: pipeline-20260429
+
 triggers:
   trigger: auto
   push:
     branches:
       prefix:
         - ''
+
 stages:
-  - name: stage-27f22245
-    displayName: FirstStep
+  - name: stage-build
+    displayName: Build with CUDA
     strategy: naturally
     trigger: auto
-    executor: []
+    executor:
+      - name: linux          # 指定 Linux 环境
+        arch: amd64
+        os: linux
+       规格: c1.small        # 1核2G，编译够用
     steps:
-      - step: build@gcc
-        name: build_gcc
-        displayName: GCC 构建
-        gccVersion: '13.4'
+      - step: build@shell   # 改用 shell 步骤，可以自定义命令
+        name: build_with_cuda
+        displayName: Build CUDA Project
+        envs:               # 设置环境变量
+          - key: PATH
+            value: /usr/local/cuda/bin:$PATH
+          - key: LD_LIBRARY_PATH
+            value: /usr/local/cuda/lib64:$LD_LIBRARY_PATH
         commands:
-          - '# 新建build目录，切换到build目录'
-          - 'mkdir build && cd build '
-          - '# 生成Unix平台的makefiles文件并执行构建'
-          - cmake -G 'Unix Makefiles' ../ && make -j
+          # 1. 更新软件源
+          - sudo apt-get update -qq
+          
+          # 2. 安装 CUDA 工具包（仅编译工具，无驱动）
+          - sudo apt-get install -y cuda-toolkit-13-0
+          
+          # 3. 验证 nvcc 是否可用
+          - nvcc --version
+          
+          # 4. 新建并进入 build 目录
+          - mkdir -p build && cd build
+          
+          # 5. CMake 配置（指定 CUDA 路径，可选）
+          - cmake .. -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DCMAKE_CXX_STANDARD=20
+          
+          # 6. 编译（使用所有 CPU 核心）
+          - make -j$(nproc)
+          
+          # 7. 创建产物目录（如果 make 没自动创建）
+          - mkdir -p ./bin && cp ./your_executable ./bin/ 2>/dev/null || true
         artifacts:
-          - name: BUILD_ARTIFACT
+          - name: build_artifacts
             path:
-              - ./bin
-        caches: []
+              - ./build/bin          # 调整为你的实际产物路径
+              - ./build/*.so         # 如果是动态库
+        caches:
+          - path: /usr/local/cuda    # 缓存 CUDA 工具链，下次构建更快
         notify: []
         strategy:
           retry: '0'
