@@ -12,18 +12,15 @@ stages:
     displayName: Build
     strategy: naturally
     trigger: auto
-    executor: []
+    executor:
+      - name: docker
+        image: nvidia/cuda:12.0.0-devel-ubuntu22.04 
     steps:
       - step: build@gcc
         name: build_gcc
         displayName: GCC 构建
         gccVersion: '13.4'
         commands:
-          - apt-get install -y wget
-          - wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
-          - dpkg -i cuda-keyring_1.1-1_all.deb
-          - apt-get update
-          - apt-get install cuda-toolkit-12-0
           - nvcc --version
           - '# 新建build目录，切换到build目录'
           - 'mkdir build && cd build '
