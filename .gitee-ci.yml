@@ -1,0 +1,13 @@
+build_and_test_job:
+  script:
+    # 1. 克隆和安装 vcpkg
+    - git clone https://github.com/microsoft/vcpkg.git
+    - ./vcpkg/bootstrap-vcpkg.sh
+    - ./vcpkg/vcpkg install opencv boost-system
+    
+    # 2. 构建时通过 toolchain 文件集成
+    - mkdir build && cd build
+    - cmake .. -DCMAKE_TOOLCHAIN_FILE=../vcpkg/scripts/buildsystems/vcpkg.cmake
+    - make
+    - ./Test/TestTensor
+    
