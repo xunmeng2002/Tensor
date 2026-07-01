@@ -1,8 +1,10 @@
 # 明确指定这些文件类型使用 LF（覆盖 text=auto）
-*.cpp text eol=lf
 *.h text eol=lf
 *.hpp text eol=lf
 *.c text eol=lf
+*.cpp text eol=lf
+*.cuh text eol=lf
+*.cu text eol=lf
 *.cs text eol=lf
 *.py text eol=lf
 *.js text eol=lf
